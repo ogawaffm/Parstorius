@@ -24,7 +24,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static com.ogawa.parstorius.BooleanFormatter.DEFAULT_PATTERN;
+import static com.ogawa.parstorius.BooleanFormatter.DEFAULT_FALSE_LIST;
+import static com.ogawa.parstorius.BooleanFormatter.DEFAULT_TRUE_LIST;
 
 public interface BooleanFormatterConstructorTest {
 
@@ -35,10 +36,10 @@ public interface BooleanFormatterConstructorTest {
         new BooleanFormatter(),
         new BooleanFormatter(true),
         new BooleanFormatter(false),
-        new BooleanFormatter(true, null),
-        new BooleanFormatter(null),
-        new BooleanFormatter(booleanTexts),
-        new BooleanFormatter(false, booleanTexts)
+        new BooleanFormatter(true, null, null),
+        new BooleanFormatter(false, null, null),
+        new BooleanFormatter(true, List.of("wahr", "-1"), List.of("falsch", "0")),
+        new BooleanFormatter(false, List.of("wahr", "-1"), List.of("falsch", "0"))
     );
     return formatters;
   }
@@ -48,7 +49,8 @@ public interface BooleanFormatterConstructorTest {
     BooleanFormatter f;
     f = new BooleanFormatter();
     Assertions.assertEquals(false, f.getParseCaseInsensitive());
-    Assertions.assertEquals(DEFAULT_PATTERN, f.getBaseFormatter());
+    Assertions.assertEquals(DEFAULT_FALSE_LIST, f.getFalseList());
+    Assertions.assertEquals(DEFAULT_TRUE_LIST, f.getTrueList());
   }
 
   @Test
@@ -56,7 +58,8 @@ public interface BooleanFormatterConstructorTest {
     BooleanFormatter f;
     f = new BooleanFormatter(true);
     Assertions.assertEquals(true, f.getParseCaseInsensitive());
-    Assertions.assertEquals(DEFAULT_PATTERN, f.getBaseFormatter());
+    Assertions.assertEquals(DEFAULT_TRUE_LIST, f.getTrueList());
+    Assertions.assertEquals(DEFAULT_FALSE_LIST, f.getFalseList());
   }
 
   @Test
@@ -64,33 +67,39 @@ public interface BooleanFormatterConstructorTest {
     BooleanFormatter f;
     f = new BooleanFormatter(false);
     Assertions.assertEquals(false, f.getParseCaseInsensitive());
-    Assertions.assertEquals(DEFAULT_PATTERN, f.getBaseFormatter());
+    Assertions.assertEquals(DEFAULT_TRUE_LIST, f.getTrueList());
+    Assertions.assertEquals(DEFAULT_FALSE_LIST, f.getFalseList());
   }
 
-  static List<String> germanBooleans = List.of("wahr", "falsch");
+  static List<String> germanTrueList = List.of("wahr");
+  static List<String> germanFalseList = List.of("falsch");
 
   @Test
   default void constructor_true_List() {
     BooleanFormatter f;
-    f = new BooleanFormatter(true, null);
+    f = new BooleanFormatter(true, null, null);
     Assertions.assertEquals(true, f.getParseCaseInsensitive());
-    Assertions.assertEquals(DEFAULT_PATTERN, f.getBaseFormatter());
+    Assertions.assertEquals(DEFAULT_TRUE_LIST, f.getTrueList());
+    Assertions.assertEquals(DEFAULT_FALSE_LIST, f.getFalseList());
 
-    f = new BooleanFormatter(true, germanBooleans);
+    f = new BooleanFormatter(true, germanTrueList, germanFalseList);
     Assertions.assertEquals(true, f.getParseCaseInsensitive());
-    Assertions.assertEquals(germanBooleans, f.getBaseFormatter());
+    Assertions.assertEquals(germanTrueList, f.getTrueList());
+    Assertions.assertEquals(germanFalseList, f.getFalseList());
   }
 
   @Test
   default void constructor_false_List() {
     BooleanFormatter f;
-    f = new BooleanFormatter(false, null);
+    f = new BooleanFormatter(false, null, null);
     Assertions.assertEquals(false, f.getParseCaseInsensitive());
-    Assertions.assertEquals(DEFAULT_PATTERN, f.getBaseFormatter());
+    Assertions.assertEquals(DEFAULT_TRUE_LIST, f.getTrueList());
+    Assertions.assertEquals(DEFAULT_FALSE_LIST, f.getFalseList());
 
-    f = new BooleanFormatter(false, germanBooleans);
+    f = new BooleanFormatter(false, germanTrueList, germanFalseList);
     Assertions.assertEquals(false, f.getParseCaseInsensitive());
-    Assertions.assertEquals(germanBooleans, f.getBaseFormatter());
+    Assertions.assertEquals(germanTrueList, f.getTrueList());
+    Assertions.assertEquals(germanFalseList, f.getFalseList());
   }
 
 }

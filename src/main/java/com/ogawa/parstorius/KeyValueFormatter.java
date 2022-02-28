@@ -22,7 +22,7 @@ import java.util.Map;
 @SuppressWarnings("unused")
 // The constant value is the format, which is the result of parseText and is returned on format
 // as its string representation
-public class KeyValueFormatter<T> extends Formatter<T, Map<String, T>, KeyValueFormatter<T>> {
+public class KeyValueFormatter<T> extends Formatter<T, KeyValueFormatter<T>> {
 
     private T format;
 
@@ -32,21 +32,15 @@ public class KeyValueFormatter<T> extends Formatter<T, Map<String, T>, KeyValueF
      * @param pattern pattern for parsing and formatting
      */
     protected KeyValueFormatter(final boolean parseCaseInsensitive, final Map<String, T> pattern) {
-        super(pattern, parseCaseInsensitive);
+        super(parseCaseInsensitive);
     }
-
 
     @Override protected KeyValueFormatter<T> init() { return this; }
 
-    @Override public KeyValueFormatter<T> clone() { return new KeyValueFormatter<>(parseCaseInsensitive,
-        baseFormatter);
+    @Override public KeyValueFormatter<T> clone() { return new KeyValueFormatter<>(parseCaseInsensitive, null);
     }
 
-    @Override String patternToString() {
-        return null;
-    }
-
-    @Override public Map<String, T> getBaseFormatter() {
+    public Map<String, T> getKeyValueMap() {
         return null;
     }
 
@@ -56,7 +50,7 @@ public class KeyValueFormatter<T> extends Formatter<T, Map<String, T>, KeyValueF
     }
 
     @Override
-    protected T parseText(String text, ParsePosition parsePosition) {
+    protected T parseText(String text, ParsePosition contextParsePosition) {
         return format;
     }
 

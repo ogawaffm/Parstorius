@@ -25,8 +25,6 @@ import org.junit.jupiter.api.Test;
 import java.text.DecimalFormat;
 import java.util.List;
 
-import static com.ogawa.parstorius.BooleanFormatter.DEFAULT_PATTERN;
-
 public interface NumberFormatterConstructorTest<T extends Number> {
 
   static List<String> booleanTexts = List.of("wahr", "falsch", "-1", "0");
@@ -45,49 +43,39 @@ public interface NumberFormatterConstructorTest<T extends Number> {
     NumberFormatter<T> f;
     f = new NumberFormatter(Integer.class);
     Assertions.assertEquals(false, f.getParseCaseInsensitive());
-    Assertions.assertEquals(DEFAULT_PATTERN, f.getBaseFormatter());
+    Assertions.assertEquals(new DecimalFormat().toPattern(), f.getDecimalFormat().toPattern());
   }
 
   @Test
-  default void constructor_true() {
+  default void constructor_trueFalse() {
     NumberFormatter<T> f;
-    f = new NumberFormatter(Integer.class);
+    f = new NumberFormatter(Integer.class, true);
     Assertions.assertEquals(true, f.getParseCaseInsensitive());
-    Assertions.assertEquals(DEFAULT_PATTERN, f.getBaseFormatter());
-  }
+    Assertions.assertEquals(new DecimalFormat().toPattern(), f.getDecimalFormat().toPattern());
 
-  @Test
-  default void constructor_false() {
-    NumberFormatter<T> f;
-    f = new NumberFormatter(Integer.class);
+    f = new NumberFormatter(Integer.class, false);
     Assertions.assertEquals(false, f.getParseCaseInsensitive());
-    Assertions.assertEquals(DEFAULT_PATTERN, f.getBaseFormatter());
+    Assertions.assertEquals(new DecimalFormat().toPattern(), f.getDecimalFormat().toPattern());
   }
 
-  static List<String> germanBooleans = List.of("wahr", "falsch");
+  @Test
+  default void constructor_DefaultDF() {
+    NumberFormatter<T> f;
+    f = new NumberFormatter(Integer.class, new DecimalFormat());
+    Assertions.assertEquals(false, f.getParseCaseInsensitive());
+    Assertions.assertEquals(new DecimalFormat().toPattern(), f.getDecimalFormat().toPattern());
+  }
 
   @Test
-  default void constructor_true_List() {
+  default void constructor_DefaultDF_trueFalse() {
     NumberFormatter<T> f;
-    f = new NumberFormatter(Integer.class);
+    f = new NumberFormatter(Integer.class, new DecimalFormat(), true );
     Assertions.assertEquals(true, f.getParseCaseInsensitive());
-    Assertions.assertEquals(DEFAULT_PATTERN, f.getBaseFormatter());
+    Assertions.assertEquals(new DecimalFormat().toPattern(), f.getDecimalFormat().toPattern());
 
-    f = new NumberFormatter(Integer.class);
-    Assertions.assertEquals(true, f.getParseCaseInsensitive());
-    Assertions.assertEquals(germanBooleans, f.getBaseFormatter());
-  }
-
-  @Test
-  default void constructor_false_List() {
-    NumberFormatter<T> f;
-    f = new NumberFormatter(Integer.class);
+    f = new NumberFormatter(Integer.class, new DecimalFormat(), false);
     Assertions.assertEquals(false, f.getParseCaseInsensitive());
-    Assertions.assertEquals(DEFAULT_PATTERN, f.getBaseFormatter());
-
-    f = new NumberFormatter(Integer.class);
-    Assertions.assertEquals(false, f.getParseCaseInsensitive());
-    Assertions.assertEquals(germanBooleans, f.getBaseFormatter());
+    Assertions.assertEquals(new DecimalFormat().toPattern(), f.getDecimalFormat().toPattern());
   }
 
 }

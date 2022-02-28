@@ -20,11 +20,10 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.text.ParsePosition;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @SuppressWarnings("unused")
@@ -34,8 +33,15 @@ import java.util.regex.Pattern;
  * Default rounding mode is {@link RoundingMode#HALF_UP}
  */
 
+/**
+ * Since this formatter is based on java.text.DecimalFormat it can deal with
+ * 1.234E1,  1.234E001,
+ * 1.234E-1, 1.234E-001
+ * but not with 1.234E+1, because signed exponents are not allowed.
+ */
+
 // T can be one of Byte, Short, Integer, Long, Float, Double, BigInteger, BigDecimal
-public class NumberFormatter<T extends Number> extends Formatter<T, DecimalFormat, NumberFormatter<T>> {
+public class NumberFormatter<T extends Number> extends Formatter<T, NumberFormatter<T>> {
 
     // final, because it is characteristic for the formatter it should not be changeable
     final private Class<T> numberClassT;
@@ -51,20 +57,25 @@ public class NumberFormatter<T extends Number> extends Formatter<T, DecimalForma
         this(numberClassT, new DecimalFormat());
     }
 
-    public NumberFormatter(Class<T> numberClassT, DecimalFormat decimalFormat) {
-        this(numberClassT, decimalFormat, true);
+    public NumberFormatter(Class<T> numberClassT, boolean parseCaseInsensitive) {
+        this(numberClassT, new DecimalFormat(), parseCaseInsensitive);
     }
 
+    public NumberFormatter(Class<T> numberClassT, DecimalFormat decimalFormat) {
+        // use case-sensitive mode because DecimalFormat does not know about case-insensitivity
+        this(numberClassT, decimalFormat, false);
+    }
 
     public NumberFormatter(Class<T> numberClassT, DecimalFormat decimalFormat, boolean parseCaseInsensitive) {
-        super(decimalFormat, parseCaseInsensitive);
+        super(parseCaseInsensitive);
 
         Objects.requireNonNull(numberClassT, "numberClassT");
         Objects.requireNonNull(numberClassT, "decimalFormat");
 
-        // decouple passed decimal format from original to avoid any interference
-        this.decimalFormat = (DecimalFormat) decimalFormat.clone();
+        // decouple passed decimal format from original to avoid any interferences
         this.numberClassT = numberClassT;
+        this.decimalFormat = (DecimalFormat) decimalFormat.clone();
+        this.decimalFormat.setParseBigDecimal(true);
 
         castMethod = getCastMethod(numberClassT);
 
@@ -78,7 +89,31 @@ public class NumberFormatter<T extends Number> extends Formatter<T, DecimalForma
     /* ********************************* common ********************************* */
     /* ************************************************************************** */
 
+    /* ***************************** common getter ****************************** */
+
+    /**
+     * Returns a clone of the used DecimalFormat
+     * @return internal DecimalFormat
+     */
+    public DecimalFormat getDecimalFormat() {
+        return (DecimalFormat) decimalFormat.clone();
+    }
+
     /* ****************************** common logic ****************************** */
+
+    // TODO
+    public String toString() {
+        return new StringBuilder()
+            .append(getClass().getSimpleName())
+            .append(" for ")
+            .append(" using format ")
+            .append(decimalFormat.toPattern())
+            .append(" parsing case-")
+            .append(parseCaseInsensitive ? "insensitive" : "sensitive")
+            .toString()
+        ;
+    }
+
 
     @SuppressWarnings("unchecked")
     private T cast(BigDecimal bigDecimal) {
@@ -86,7 +121,7 @@ public class NumberFormatter<T extends Number> extends Formatter<T, DecimalForma
         return result;
     }
 
-    private Function<BigDecimal, ? extends Number> getCastMethod(Class<T> numberClassT) {
+    static private Function<BigDecimal, ? extends Number> getCastMethod(Class numberClassT) {
 
         // integral primitives
         if (numberClassT.equals(Byte.class)) {
@@ -116,14 +151,6 @@ public class NumberFormatter<T extends Number> extends Formatter<T, DecimalForma
 
     }
 
-    @Override String patternToString() {
-        return decimalFormat.toString();
-    }
-
-    @Override public DecimalFormat getBaseFormatter() {
-        return (DecimalFormat) decimalFormat.clone();
-    }
-
     @Override protected NumberFormatter<T> init() {
         return this;
     }
@@ -134,7 +161,7 @@ public class NumberFormatter<T extends Number> extends Formatter<T, DecimalForma
 
     // instantiates a new Formatter with same local and formatPattern
     @Override public NumberFormatter<T> clone() {
-        return new NumberFormatter<>(numberClassT, baseFormatter).copyProperties(this);
+        return new NumberFormatter<>(numberClassT, decimalFormat).copyProperties(this);
     }
 
     /* ************************************************************************** */
@@ -163,33 +190,43 @@ public class NumberFormatter<T extends Number> extends Formatter<T, DecimalForma
         return decimalFormat.getRoundingMode();
     }
 
-
     /* ******************************* parse logic ****************************** */
 
     private String replaceExponentCaseMismatch(String text, int parsePosition) {
-        Pattern p = Pattern.compile(
-            "^" + ".".repeat(parsePosition) +
-                "\\d(" + Pattern.quote(decimalFormat.getDecimalFormatSymbols().getExponentSeparator()) + ")\\d",
+        Pattern p = Pattern.compile("(" +
+            ".".repeat(parsePosition) +
+                ".*?\\d)(" + Pattern.quote(decimalFormat.getDecimalFormatSymbols().getExponentSeparator()) + ")(-?\\d.*)",
             Pattern.CASE_INSENSITIVE);
 
-        return p.matcher(text).replaceFirst(decimalFormat.getDecimalFormatSymbols().getExponentSeparator());
+        Matcher matcher = p.matcher(text);
+        if (matcher.find()) {
+            return matcher.group(1) + decimalFormat.getDecimalFormatSymbols().getExponentSeparator() + matcher.group(3);
+        } else {
+            return text;
+        }
+//        return p.matcher(text).replaceFirst(decimalFormat.getDecimalFormatSymbols().getExponentSeparator());
 
     }
 
     @Override
-    protected T parseText(String text, ParsePosition parsePosition) throws Exception {
+    protected T parseText(String text, ParsePosition contextParsePosition) throws Exception {
 
         Number result;
 
         if (parseCaseInsensitive) {
-            String stringToParse = replaceExponentCaseMismatch(text, parsePosition.getIndex());
-            result = decimalFormat.parse(stringToParse, parsePosition);
+            String stringToParse = replaceExponentCaseMismatch(text, contextParsePosition.getIndex());
+            result = decimalFormat.parse(stringToParse, contextParsePosition);
         } else {
-            result = decimalFormat.parse(text, parsePosition);
+            result = decimalFormat.parse(text, contextParsePosition);
         }
 
+        if (contextParsePosition.getErrorIndex() != -1) {
+            throw ParseExceptionFactory.createParseException(contextParsePosition);
+        } else {
+            return cast((BigDecimal) result);
+        }
 
-        return result != null ? cast((BigDecimal) result) : null;
+//        return result != null ? cast((BigDecimal) result) : null;
 
     }
 
@@ -202,27 +239,6 @@ public class NumberFormatter<T extends Number> extends Formatter<T, DecimalForma
     @Override
     protected String formatObject(final T object) {
         return decimalFormat.format(object);
-    }
-
-    /* ************************************************************************** */
-    /* ****************************** static stuff ****************************** */
-    /* ************************************************************************** */
-
-    /**
-     * Returns the decimal separator e.g. , or . for the default locale
-     * @return decimal separator
-     */
-    public DecimalFormatSymbols getDecimalFormatSymbols() {
-        return DecimalFormatSymbols.getInstance();
-    }
-
-    /**
-     * Returns the decimal separator e.g. , or . for the passed locale
-     * @param locale local for which the decimal separator shall be determined
-     * @return decimal separator
-     */
-    public DecimalFormatSymbols getDecimalFormatSymbols(Locale locale) {
-        return DecimalFormatSymbols.getInstance(locale);
     }
 
 }

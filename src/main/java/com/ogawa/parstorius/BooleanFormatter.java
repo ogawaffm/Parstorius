@@ -19,17 +19,28 @@ package com.ogawa.parstorius;
 import java.text.ParsePosition;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiPredicate;
+import java.util.stream.Collectors;
 
 @SuppressWarnings("unused")
-public class BooleanFormatter extends Formatter<Boolean, List<String>, BooleanFormatter> {
+public class BooleanFormatter extends Formatter<Boolean, BooleanFormatter> {
+
+//    public final String ONE = "1";
+//    public final String ZERO = "0";
+//    public final String YES = "YES";
+//    public final String NO = "NO";
+
+    public static final List<String> DEFAULT_TRUE_LIST = List.of(Boolean.TRUE.toString());
+    public static final List<String> DEFAULT_FALSE_LIST = List.of(Boolean.TRUE.toString());
+
+    public static final List<String> ONE_TRUE_LIST = List.of(Boolean.TRUE.toString());
+    public static final List<String> ZERO_FALSE_LIST = List.of(Boolean.TRUE.toString());
 
     BiPredicate<String, String> caseFunction;
-    private ArrayList<String> trueRepresentatives;
-    private ArrayList<String> falseRepresentatives;
+    final private ArrayList<String> trueRepresentatives = new ArrayList<String>();
+    final private ArrayList<String> falseRepresentatives = new ArrayList<String>();
 
-    public static final List<String> DEFAULT_PATTERN = List.of(Boolean.TRUE.toString(), Boolean.FALSE.toString());
 
     /* ************************************************************************** */
     /* ****************************** constructors ****************************** */
@@ -39,14 +50,18 @@ public class BooleanFormatter extends Formatter<Boolean, List<String>, BooleanFo
         this(false);
     }
     public BooleanFormatter(boolean parseCaseInsensitive) {
-        this(parseCaseInsensitive, null);
+        this(parseCaseInsensitive, null, null);
     }
-    public BooleanFormatter(List<String> pattern) {
-        this(false, pattern);
+    public BooleanFormatter(List<String> trueList, List<String> falseList) {
+        this(false, null, null);
     }
 
-    public BooleanFormatter(boolean parseCaseInsensitive, List<String> pattern) {
-        super(pattern, parseCaseInsensitive);
+    public BooleanFormatter(boolean parseCaseInsensitive, List<String> trueRepresentatives, List<String> falseRepresentatives) {
+        super(parseCaseInsensitive);
+        trueRepresentatives = new ArrayList<String>();
+        trueRepresentatives.forEach(e -> this.trueRepresentatives.add(e));
+        falseRepresentatives = new ArrayList<String>();
+        falseRepresentatives.forEach(e -> this.falseRepresentatives.add(e));
         setParseCaseInsensitive(parseCaseInsensitive);
         init();
     }
@@ -57,36 +72,24 @@ public class BooleanFormatter extends Formatter<Boolean, List<String>, BooleanFo
 
     /* ****************************** common logic ****************************** */
 
-    @Override String patternToString() {
+    @Override public String toString() {
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < trueRepresentatives.size(); i++) {
-            sb.append(trueRepresentatives.get(i)).append("/").append(falseRepresentatives.get(i));
-            if (i < trueRepresentatives.size() - 1) {
-                sb.append(", ");
-            }
-        }
+        sb.append("true=");
+        sb.append(trueRepresentatives.stream().collect(Collectors.joining(",", "\"", "\"")));
+        sb.append("false=");
+        sb.append(falseRepresentatives.stream().collect(Collectors.joining(",", "\"", "\"")));
         return sb.toString();
     }
 
-    @Override public List<String> getBaseFormatter() {
-        return null;
+    public List<String> getTrueList() {
+        return new ArrayList<>(trueRepresentatives);
+    }
+
+    public List<String> getFalseList() {
+        return new ArrayList<>(falseRepresentatives);
     }
 
     @Override protected BooleanFormatter init() {
-
-        baseFormatter = Objects.requireNonNullElse(baseFormatter, DEFAULT_PATTERN);
-
-        if (this.baseFormatter.size() < 2) {
-            throw new IllegalArgumentException(
-                "pattern list must have at least two values. One true and one false representative.");
-        }
-
-        if ((this.baseFormatter.size() % 2) != 0) {
-            throw new IllegalArgumentException(
-                "pattern list must have an even size to represent true/false tuples.");
-        }
-        trueRepresentatives = new ArrayList<>(baseFormatter.size() / 2);
-        falseRepresentatives = new ArrayList<>(baseFormatter.size() / 2);
 
         if (parseCaseInsensitive) {
             caseFunction = String::equalsIgnoreCase;
@@ -94,19 +97,11 @@ public class BooleanFormatter extends Formatter<Boolean, List<String>, BooleanFo
             caseFunction = String::equals;
         }
 
-        for (int i = 0; i < baseFormatter.size(); i++){
-            if (i % 2 == 0) {
-                trueRepresentatives.add(baseFormatter.get(i));
-            } else {
-                falseRepresentatives.add(baseFormatter.get(i));
-            }
-        }
-
         return this;
     }
 
     @Override public BooleanFormatter clone() {
-        return new BooleanFormatter(parseCaseInsensitive, baseFormatter);
+        return new BooleanFormatter(parseCaseInsensitive, trueRepresentatives, falseRepresentatives).copyProperties(this);
     }
 
     /* ************************************************************************** */
@@ -116,11 +111,16 @@ public class BooleanFormatter extends Formatter<Boolean, List<String>, BooleanFo
     /* ******************************* parse logic ****************************** */
 
     @Override
-    protected Boolean parseText(String text, ParsePosition parsePosition) {
-        if (contains(trueRepresentatives, text)) {
+    protected Boolean parseText(String text, ParsePosition contextParsePosition) {
+        Optional<String> found;
+        found = find(trueRepresentatives, text);
+        if (found.isPresent()) {
             return true;
-        } else if (contains(falseRepresentatives, text)) {
-            return false;
+        } else {
+            found = find(falseRepresentatives, text);
+            if (found.isPresent()) {
+                return false;
+            }
         }
         // signal an error
         return null;

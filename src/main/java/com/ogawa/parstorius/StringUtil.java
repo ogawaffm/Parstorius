@@ -43,9 +43,10 @@ public class StringUtil {
    * @return index of first non-blank or -1 if a non-blank could not to be found
    */
   public static int getLastNonSpaceIndex(String text, int startIndex) {
-    Objects.checkIndex(startIndex, text.length());
-    for(int index = startIndex; index >= 0; index--) {
-      if (text.charAt(index) != '\u0020') return index;
+    if (startIndex >= 0 && startIndex < text.length()) {
+      for (int index = startIndex; index >= 0; index--) {
+        if (text.charAt(index) != '\u0020') return index;
+      }
     }
     return -1;
   }
@@ -53,7 +54,7 @@ public class StringUtil {
   /**
    * Completes with the missing String-method trimLeading analog {@link String#stripLeading()}
    * @param text to trim left blanks off
-   * @return
+   * @return text without leading spaces
    */
   public static String trimLeading(String text) {
     int firstNonSpaceIndex = getFirstNonSpaceIndex(text, 0);
@@ -67,7 +68,7 @@ public class StringUtil {
   /**
    * Completes with the missing String-method trimTrailing analog {@link String#stripTrailing()}
    * @param text to trim right blanks off
-   * @return
+   * @return text without trailing spaces
    */
   public static String trimTrailing(String text) {
     int lastNonSpaceIndex = getLastNonSpaceIndex(text, 0);
@@ -101,12 +102,12 @@ public class StringUtil {
    * @return index of first non-blank or -1 if a non-blank could not to be found
    */
   public static int getLastNonWhiteSpaceIndex(String text, int startIndex) {
-    Objects.checkIndex(startIndex, text.length());
-    for(int index = startIndex; index >= 0; index--) {
-      if (! Character.isWhitespace(text.charAt(index))) return index;
+    if (startIndex >= 0 && startIndex < text.length()) {
+      for (int index = startIndex; index >= 0; index--) {
+        if (! Character.isWhitespace(text.charAt(index))) return index;
+      }
     }
     return -1;
   }
-
 
 }

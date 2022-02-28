@@ -19,8 +19,8 @@ package com.ogawa.parstorius;
 import java.util.Locale;
 import java.util.Objects;
 
-public abstract class LocalizedFormatter<T, B, F extends LocalizedFormatter<T, B, F>>
-    extends Formatter<T, B, F> {
+public abstract class LocalizedFormatter<T, F extends LocalizedFormatter<T, F>>
+    extends Formatter<T, F> {
 
   Locale locale;
 
@@ -28,8 +28,8 @@ public abstract class LocalizedFormatter<T, B, F extends LocalizedFormatter<T, B
   /* ****************************** constructors ****************************** */
   /* ************************************************************************** */
 
-  protected LocalizedFormatter(final Locale locale, final B baseFormatter) {
-    super(baseFormatter, false);
+  protected LocalizedFormatter(final Locale locale) {
+    super(false);
     // internalize arguments
     this.locale = Objects.requireNonNullElse(locale,Locale.getDefault());
   }
@@ -45,7 +45,7 @@ public abstract class LocalizedFormatter<T, B, F extends LocalizedFormatter<T, B
    * @param locale the locale to be used for formatting and parsing
    * @return the formatter instance
    */
-  public LocalizedFormatter <T, B, F> setLocale(final Locale locale) {
+  public LocalizedFormatter <T, F> setLocale(final Locale locale) {
     this.locale = Objects.requireNonNullElse(locale, Locale.getDefault());
     init();
     return this;

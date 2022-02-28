@@ -25,35 +25,29 @@ import static java.lang.Math.abs;
 
 
 // T can extend Number, but must not inherit methods from AbstractObjectFormatter
-public class StringFormatter extends Formatter<String, Integer, StringFormatter> {
+public class StringFormatter extends Formatter<String, StringFormatter> {
 
-    private DecimalFormat decimalFormat;
+    private int fixedLength;
     String blankValueDefault;
 
-    protected StringFormatter(boolean parseCaseInsensitive, Integer formatPattern) {
-        super(formatPattern, parseCaseInsensitive);
+    protected StringFormatter(boolean parseCaseInsensitive, int fixedLength) {
+        super(parseCaseInsensitive);
         this.blankValueDefault = null;
     }
 
-    @Override String patternToString() {
-        return decimalFormat.toPattern();
+    public Integer getBaseFormatter() {
+        return 4;
     }
 
-    @Override public Integer getBaseFormatter() {
-        return baseFormatter;
-    }
-
-    @Override protected StringFormatter init() {
-         decimalFormat = new DecimalFormat("#"); return this;
-    }
+    @Override protected StringFormatter init() { return this; }
 
     /**
      * Returns a deep copy clone
      * @return a clone of the formatter
      */
     @Override public StringFormatter clone() {
-        StringFormatter clone = new StringFormatter(parseCaseInsensitive, baseFormatter);
-        clone.decimalFormat = this.decimalFormat;
+        StringFormatter clone = new StringFormatter(parseCaseInsensitive, fixedLength);
+        clone.fixedLength = this.fixedLength;
         clone.blankValueDefault = this.blankValueDefault;
         return clone.init();
     }
@@ -73,26 +67,26 @@ public class StringFormatter extends Formatter<String, Integer, StringFormatter>
         }
 
         // No formatting?
-        if (baseFormatter == 0) {
+        if (fixedLength == 0) {
             return object;
         }
 
         String result = object;
 
         // Is objects string representation to long for the format?
-        if (result.length() > abs(baseFormatter)) {
+        if (result.length() > abs(fixedLength)) {
 
             return null;
 
         }
 
-        if (baseFormatter < 0) {
+        if (fixedLength < 0) {
 
-            return " ".repeat(-baseFormatter - result.length()) + result;
+            return " ".repeat(-fixedLength - result.length()) + result;
 
         } else {
 
-            return result + " ".repeat(baseFormatter - result.length());
+            return result + " ".repeat(fixedLength - result.length());
 
         }
 

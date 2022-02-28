@@ -41,22 +41,25 @@ import java.util.function.Function;
 //                  OffsetDateTime, OffsetTime, ThaiBuddhistDate, Year, YearMonth
 
 public class TemporalAccessorFormatter<T extends TemporalAccessor>
-    extends Formatter<T, DateTimeFormatter, TemporalAccessorFormatter<T>> {
+    extends Formatter<T, TemporalAccessorFormatter<T>> {
 
     final private Class<T> classT;
     // reference to BigDecimal method to cast to T (used by cast())
     private final Function<TemporalAccessor, ?> castMethod;
+    DateTimeFormatter dateTimeFormatter;
 
     /* ************************************************************************** */
     /* ****************************** constructors ****************************** */
     /* ************************************************************************** */
 
     public TemporalAccessorFormatter(Class<T> temporalAccessorClassT, DateTimeFormatter dateTimeFormatter) {
-        super(dateTimeFormatter, true);
+        super(false);
 
         Objects.requireNonNull(temporalAccessorClassT, "temporalAccessorClassT");
+        Objects.requireNonNull(dateTimeFormatter, "dateTimeFormatter");
 
         this.classT = temporalAccessorClassT;
+        this.dateTimeFormatter = dateTimeFormatter;
 
         castMethod = getCastMethod(temporalAccessorClassT);
 
@@ -74,15 +77,11 @@ public class TemporalAccessorFormatter<T extends TemporalAccessor>
 
     /* ***************************** common setter ****************************** */
 
-    @Override public DateTimeFormatter getBaseFormatter() {
-        return new DateTimeFormatterBuilder().append(baseFormatter).toFormatter();
+    public DateTimeFormatter getDateTimeFormatter() {
+        return new DateTimeFormatterBuilder().append(dateTimeFormatter).toFormatter();
     }
 
     /* ****************************** common logic ****************************** */
-
-    @Override String patternToString() {
-        return baseFormatter.toFormat().toString();
-    }
 
     @Override protected TemporalAccessorFormatter<T> init() {
 
@@ -92,7 +91,7 @@ public class TemporalAccessorFormatter<T extends TemporalAccessor>
             dateTimeFormatterBuilder.parseCaseInsensitive();
         }
 
-        dateTimeFormatterBuilder.parseLenient().append(baseFormatter);
+        dateTimeFormatterBuilder.parseLenient().append(dateTimeFormatter);
         return this;
 
     }
@@ -102,7 +101,7 @@ public class TemporalAccessorFormatter<T extends TemporalAccessor>
     }
 
     @Override public TemporalAccessorFormatter<T> clone() {
-        return new TemporalAccessorFormatter<>(classT, baseFormatter).copyProperties(this);
+        return new TemporalAccessorFormatter<>(classT, dateTimeFormatter).copyProperties(this);
     }
 
     @SuppressWarnings("unchecked")
@@ -110,7 +109,7 @@ public class TemporalAccessorFormatter<T extends TemporalAccessor>
         return (T) castMethod.apply(temporalAccessor);
     }
 
-    private Function<TemporalAccessor, Object> getCastMethod(Class<T> temporalAccessorClassT) {
+    public Function<TemporalAccessor, Object> getCastMethod(Class<T> temporalAccessorClassT) {
 
         if (temporalAccessorClassT.equals(LocalDate.class)) {
             return LocalDate::from;
@@ -150,9 +149,9 @@ public class TemporalAccessorFormatter<T extends TemporalAccessor>
     /* ******************************* parse logic ****************************** */
 
     @Override
-    public T parseText(String text, ParsePosition parsePosition) {
+    public T parseText(String text, ParsePosition contextParsePosition) {
 
-        TemporalAccessor result =  baseFormatter.parse(text, parsePosition);
+        TemporalAccessor result =  dateTimeFormatter.parse(text, contextParsePosition);
 
         return result != null ? cast(result) : null;
 
@@ -165,7 +164,7 @@ public class TemporalAccessorFormatter<T extends TemporalAccessor>
     /* ****************************** format logic ****************************** */
 
     @Override protected String formatObject(final T object) {
-        return baseFormatter.format(object);
+        return dateTimeFormatter.format(object);
     }
 
 }

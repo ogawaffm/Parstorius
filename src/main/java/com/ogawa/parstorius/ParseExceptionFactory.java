@@ -66,8 +66,8 @@ public class ParseExceptionFactory {
 
     } else {
 
-      errorMessage = getMessageText(UNKNOWN_ERROR_OFFSET);
       errorOffset = Math.max(baseOffset, 0);
+      errorMessage = getMessageText(UNKNOWN_ERROR_OFFSET);
 
     }
 

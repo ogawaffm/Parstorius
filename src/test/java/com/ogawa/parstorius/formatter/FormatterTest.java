@@ -32,18 +32,15 @@ import java.util.List;
 
 import static com.ogawa.parstorius.Formatter.NULL_TEXT;
 
-public abstract class FormatterTest <T, C, F extends Formatter<T, C, F>> {
+public abstract class FormatterTest <T, F extends Formatter<T, F>> {
 
-  final private Formatter<T, C, F> baseFormatter;
-  private Formatter<T, C, F> formatter;
+  final private Formatter<T, F> baseFormatter;
+  private Formatter<T, F> formatter;
   final private T t;
-  final private C f;
-  final private C defaultF;
-  public FormatterTest(Formatter<T, C, F> formatter, T t, C f, C defaultF) {
+
+  public FormatterTest(Formatter<T, F> formatter, T t) {
     this.baseFormatter = formatter;
     this.t = t;
-    this.f = f;
-    this.defaultF = defaultF;
   }
 
   @BeforeEach
@@ -70,8 +67,8 @@ public abstract class FormatterTest <T, C, F extends Formatter<T, C, F>> {
 
     @Test
     void getSetParseNullDefault() {
-      Assertions.assertEquals(null, formatter.setParseNullDefault(null).getParseNullDefault());
-      Assertions.assertEquals(t, formatter.setParseNullDefault(t).getParseNullDefault());
+      Assertions.assertEquals(null, formatter.setParseNullTextDefault(null).getParseNullTextDefault());
+      Assertions.assertEquals(t, formatter.setParseNullTextDefault(t).getParseNullTextDefault());
     }
 
     @Test
@@ -121,14 +118,14 @@ public abstract class FormatterTest <T, C, F extends Formatter<T, C, F>> {
 
       NumberFormatter<Integer> f = new NumberFormatter<>(Integer.class, decimalFormat);
 
-      DecimalFormat c = f.getBaseFormatter();
+      DecimalFormat df = f.getDecimalFormat();
 
-      Assertions.assertEquals(decimalFormat.toPattern(), c.toPattern());
+      Assertions.assertEquals(decimalFormat.toPattern(), df.toPattern());
 
       // since a new instance of the decimal format used for construction is expected, test it
-      c.setRoundingMode(RoundingMode.UNNECESSARY);
+      df.setRoundingMode(RoundingMode.UNNECESSARY);
 
-      Assertions.assertNotEquals(decimalFormat.getRoundingMode(), c.getRoundingMode());
+      Assertions.assertNotEquals(decimalFormat.getRoundingMode(), df.getRoundingMode());
     }
 
     @Test
@@ -148,7 +145,7 @@ public abstract class FormatterTest <T, C, F extends Formatter<T, C, F>> {
 
       // parsing values
       f.setParseMissingDefault(100);
-      f.setParseNullDefault(101);
+      f.setParseNullTextDefault(101);
       f.setParseErrorDefault(102);
       f.setParseNullTexts(List.of("null", "."));
 
@@ -162,8 +159,8 @@ public abstract class FormatterTest <T, C, F extends Formatter<T, C, F>> {
       /* ***** test ***** */
 
       // state
-      Assertions.assertEquals(f.getLastParseException(), fc.getLastParseException());
-      Assertions.assertEquals(f.getParsePosition(), fc.getParsePosition());
+      Assertions.assertEquals(f.getExceptionOnParsing(), fc.getExceptionOnParsing());
+      Assertions.assertEquals(f.getLastParsePosition(), fc.getLastParsePosition());
 
       // mode
       Assertions.assertEquals(f.getParseCaseInsensitive(), fc.getParseCaseInsensitive());
@@ -171,7 +168,7 @@ public abstract class FormatterTest <T, C, F extends Formatter<T, C, F>> {
 
       // parse values
       Assertions.assertEquals(f.getParseMissingDefault(), fc.getParseMissingDefault());
-      Assertions.assertEquals(f.getParseNullDefault(), fc.getParseNullDefault());
+      Assertions.assertEquals(f.getParseNullTextDefault(), fc.getParseNullTextDefault());
       Assertions.assertEquals(f.getParseNullTexts(), fc.getParseNullTexts());
       Assertions.assertEquals(f.getParseErrorDefault(), fc.getParseErrorDefault());
 

@@ -7,38 +7,54 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Function;
+import java.util.Optional;
+import java.util.function.BiFunction;
 
+/**
+ * Abstract super class of all parsers with the main logic of a stateful, controlled formatter/parser.
+ * @param <T> T is the type of the object to format or returned from parse, e.g. Date, LocalTime, String
+ * @param <F> B is the type of base formatter used internally.
+ */
 @SuppressWarnings("unused")
-// T is the type of the object to format or returned from parse, e.g. Date, LocalTime, String
-// B is the type of base formatter used internally.
 
-public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
+public abstract class Formatter<T, F extends Formatter<T, F>> {
 
     public static final String NULL_TEXT = "null";
 
-    // internal formatter
-    B baseFormatter;
-
     boolean parseCaseInsensitive;
 
-    // parsing defaults
-    T parseMissingDefault; // default on parsing an empty or blank string
-    T parseNullDefault;    // default on parsing a representative or on a null-argument (which is no string instance)
-    T parseErrorDefault;   // default on parsing error
-    List<String> parseNullTexts; // list of null representatives, e.g. "null", "<null>", "-", "none", "."
+    // default when null was passed to parse instead of a text
+    T parseOfNullDefault;
+
+    // default on parsing an empty or blank string
+    T parseMissingDefault;
+
+    // default on parsing a representative or on a null-argument (which is no string instance)
+    T parseNullTextDefault;
+
+    // default on parsing error
+    T parseErrorDefault;
+
+    // list of null representatives, e.g. "null", "<null>", "-", "none", "."
+    List<String> parseNullTexts;
     TRIM_MODE parseTrimMode;
-    Function<String, Integer> getTrimSkipIndexFunction;
+    BiFunction<String, Integer, Integer> trimSkipIndexFunction;
     boolean parseUntilEnd;
-    
-    int baseOffset; // number of chars skipped by trim 
-    ParseException lastParseException;
+    PARSE_RESULT_CAUSE lastParseResultCause = null;
+
+    // Exceptions are private, because subclasses shall raise it, but not set it
+    private ParseException exceptionOnParsing;
     ParsePosition parsePosition;
 
     // format defaults
     String formatNullText;
     Object formatNullDefault;
     Object formatErrorDefault;
+    FORMAT_RESULT_CAUSE lastFormatResultCause = null;
+
+    // Exceptions are private, because subclasses shall raise it, but not set it
+    private Exception exceptionOnFormatting;
+
 
     /* ************************************************************************** */
     /* ****************************** constructors ****************************** */
@@ -48,20 +64,20 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
     // "0.98..7.6.5,43E001"
 
     /**
-     * Constructs a new formatter instance using the default pattern.
-     * @param baseFormatter pattern for parsing and formatting
+     * Constructs a new formatter
+     * @param parseCaseInsensitive flag, if this formatter parses case-insensitive
      */
-    protected Formatter(final B baseFormatter, final boolean parseCaseInsensitive) {
+    protected Formatter(final boolean parseCaseInsensitive) {
 
         // internalize arguments
         this.parseCaseInsensitive = parseCaseInsensitive;
-        this.baseFormatter = baseFormatter;
 
         // parse defaults
-        this.parseNullDefault = null;
+        this.parseNullTextDefault = null;
         this.parseMissingDefault = null;
         this.parseErrorDefault = null;
         this.parseUntilEnd = true;
+        this.parsePosition = new ParsePosition(0);
 
         setParseNullTexts(Collections.emptyList());
 
@@ -71,8 +87,7 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
         this.formatNullText = NULL_TEXT;
 
         parseTrimMode = TRIM_MODE.NONE;
-        getTrimSkipIndexFunction = skipZeroFunction;
-        baseOffset = 0;
+        trimSkipIndexFunction = skipZeroFunction;
 
     }
 
@@ -81,8 +96,11 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
      */
     abstract protected F init();
 
+    /**
+     * Abstract clone method to be implemented by all subclasses.
+     * @return the clone
+     */
     abstract public F clone();
-    abstract String patternToString();
 
     /* ************************************************************************** */
     /* ********************************* common ********************************* */
@@ -90,20 +108,22 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
 
     /* ***************************** common getter ****************************** */
 
-    /**
-     * Returns the base formatter used for parsing and formatting
-     * @return the base formatter used for parsing and formatting
-     */
-    abstract public B getBaseFormatter();
-
     /* ****************************** common logic ****************************** */
 
+    /**
+     * Copies all properties from the passed sourceFormatter to this instance for cloning
+     * @param sourceFormatter source formatter to copy properties from
+     * @return this
+     */
+    @SuppressWarnings("unchecked")
     protected F copyProperties(F sourceFormatter) {
 
         // internals
-        this.baseOffset = sourceFormatter.baseOffset;
-        this.parsePosition = sourceFormatter.getParsePosition();
-        this.lastParseException = sourceFormatter.getLastParseException();
+        this.parsePosition = sourceFormatter.getLastParsePosition();
+        this.exceptionOnParsing = sourceFormatter.getExceptionOnParsing();
+        this.exceptionOnFormatting = sourceFormatter.getExceptionOnFormatting();
+        this.lastParseResultCause = sourceFormatter.lastParseResultCause;
+        this.lastFormatResultCause = sourceFormatter.lastFormatResultCause;
 
         // mode parameters
         this.setParseCaseInsensitive(sourceFormatter.getParseCaseInsensitive());
@@ -111,9 +131,10 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
         this.setParseTrimMode(sourceFormatter.getParseTrimMode());
 
         // parse result values
-        this.setParseMissingDefault(sourceFormatter.getParseMissingDefault());
         this.setParseNullTexts(sourceFormatter.getParseNullTexts());
-        this.setParseNullDefault(sourceFormatter.getParseNullDefault());
+        this.setParseOfNullDefault(sourceFormatter.getParseOfNullDefault());
+        this.setParseNullTextDefault(sourceFormatter.getParseNullTextDefault());
+        this.setParseMissingDefault(sourceFormatter.getParseMissingDefault());
         this.setParseErrorDefault(sourceFormatter.getParseErrorDefault());
 
         // format result values
@@ -125,17 +146,34 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
 
     }
 
-    /**
-     * Checks if the passed collection contains the passed string. The check takes parse case-sensitivity into account.
-     * @param collection collection to check against, if str is contained
-     * @param str string to check, if it is contained in collection
-     * @return boolean result of the contains-check
-     */
-    boolean contains(Collection<String> collection, String str) {
+    private ParsePosition resetParsePosition(ParsePosition parsePosition) {
+        parsePosition.setIndex(0);
+        parsePosition.setErrorIndex(-1);
+        return parsePosition;
+    }
+
+    private ParsePosition moveParsePosition(ParsePosition parsePosition, int move) {
+        parsePosition.setIndex(parsePosition.getIndex() + move);
+        return parsePosition;
+    }
+
+    private ParsePosition cloneParsePosition(ParsePosition sourceParsePosition) {
+        ParsePosition clonedParsePosition = new ParsePosition(sourceParsePosition.getIndex());
+        clonedParsePosition.setErrorIndex(sourceParsePosition.getErrorIndex());
+        return clonedParsePosition;
+    }
+
+        /**
+         * Checks if the passed collection find the passed string. The check takes parse case-sensitivity into account.
+         * @param collection collection to check against, if str is contained
+         * @param str string to check, if it is contained in collection
+         * @return boolean result of the find-check
+         */
+    Optional<String> find(Collection<String> collection, final String str) {
         if (parseCaseInsensitive) {
-            return collection.stream().anyMatch(str::equalsIgnoreCase);
+            return collection.stream().filter(str::equalsIgnoreCase).findFirst();
         } else {
-            return collection.stream().anyMatch(str::equals);
+            return collection.stream().filter(str::equals).findFirst();
         }
     }
 
@@ -148,37 +186,19 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
     /* ***** do not make static! Could be overridden in subclasses, e.g. for a string parser *****/
     protected boolean valueIsMissing(String text) {
         switch (parseTrimMode) {
-        case NONE:
-        default:
-            return text.isEmpty();
-        case TRIM:
-        case TRIM_LEADING:
-        case TRIM_TRAILING:
-            return -1 != StringUtil.getFirstNonSpaceIndex(text, 0);
-        case STRIP:
-        case STRIP_LEADING:
-        case STRIP_TRAILING:
-            return -1 != StringUtil.getFirstNonWhiteSpaceIndex(text, 0);
+            case NONE:
+            default:
+                return text.isEmpty();
+            case TRIM:
+            case TRIM_LEADING:
+            case TRIM_TRAILING:
+                return -1 == StringUtil.getFirstNonSpaceIndex(text, 0);
+            case STRIP:
+            case STRIP_LEADING:
+            case STRIP_TRAILING:
+                return -1 == StringUtil.getFirstNonWhiteSpaceIndex(text, 0);
         }
 
-    }
-
-    /**
-     * Human-readable override ot toString() for debugging purposes
-     * @return Human-readable string
-     */
-    @Override
-    @SuppressWarnings("all") // for 'StringBuilder' can be replaced with 'String'
-    public String toString() {
-        return new StringBuilder()
-            .append(getClass().getSimpleName())
-            .append(" for ")
-            .append(" using format ")
-            .append(patternToString())
-            .append(" parsing case-")
-            .append(parseCaseInsensitive ? "insensitive" : "sensitive")
-            .toString()
-            ;
     }
 
     /* ************************************************************************** */
@@ -198,19 +218,6 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
     }
 
     /**
-     * Sets the value to be returned on parsing a text with found null representative
-     * (e.g. "null", "<null>", "-", ".", "none" - set using setParseNullTexts)
-     * or on parsing on null argument instead of a string instance.
-     * @param parseNullDefault value to be returned, on parsing of a null-text or a text with a null representative
-     * @return the formatter instance
-     */
-    @SuppressWarnings("unchecked")
-    public F setParseNullDefault(final T parseNullDefault) {
-        this.parseNullDefault = parseNullDefault;
-        return (F) this;
-    }
-
-    /**
      * Sets the values representing null (e.g. "null", "<null>", "-", ".", "none") in the string to be parsed.
      * Null itself is not an allowed value in the list.
      * @return the formatter instance
@@ -223,6 +230,17 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
     }
 
     /**
+     * Sets the value to be returned when null was passed to parse instead of a text
+     * @param parseOfNullDefault default returned if null was passed to parse instead of a text
+     * @return the formatter instance
+     */
+    @SuppressWarnings("unchecked")
+    public F setParseOfNullDefault(final T parseOfNullDefault) {
+        this.parseOfNullDefault = parseOfNullDefault;
+        return  (F) this;
+    }
+
+    /**
      * Sets the value to be returned on parsing a text with a no value (missing value)
      * @param parseMissingDefault default returned on a missing value
      * @return the formatter instance
@@ -230,6 +248,19 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
     @SuppressWarnings("unchecked")
     public F setParseMissingDefault(final T parseMissingDefault) {
         this.parseMissingDefault = parseMissingDefault;
+        return (F) this;
+    }
+
+    /**
+     * Sets the value to be returned on parsing a text with found null representative
+     * (e.g. "null", "<null>", "-", ".", "none" - set using setParseNullTexts)
+     * or on parsing on null argument instead of a string instance.
+     * @param parseNullTextDefault value to be returned, on parsing of a null-text or a text with a null representative
+     * @return the formatter instance
+     */
+    @SuppressWarnings("unchecked")
+    public F setParseNullTextDefault(final T parseNullTextDefault) {
+        this.parseNullTextDefault = parseNullTextDefault;
         return (F) this;
     }
 
@@ -254,7 +285,7 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
     @SuppressWarnings("unchecked")
     public F setParseTrimMode(final TRIM_MODE parseTrimMode) {
         this.parseTrimMode = parseTrimMode;
-        this.getTrimSkipIndexFunction = getTrimSkipOffsetFunction();
+        this.trimSkipIndexFunction = getTrimSkipOffsetFunction();
         return (F) this;
     }
 
@@ -271,14 +302,21 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
     /* ****************************** parse getter ****************************** */
 
     /**
-     * Returns a copy of the current parse position
+     * Returns a copy of the last parse position. Before the first parse or on the attempt to parse null
+     * instead of a text a parse position with an index of 0 and error index of -1 is returned, because
+     * parsing itself did not start. A parse position with error index > -1 indicates a parse error.
      * @return parse position
      */
-    public ParsePosition getParsePosition() {
-        ParsePosition clonedParsePosition = new ParsePosition(this.parsePosition.getIndex());
-        clonedParsePosition.setErrorIndex(clonedParsePosition.getErrorIndex());
-        return clonedParsePosition;
+    public ParsePosition getLastParsePosition() {
+        return cloneParsePosition(parsePosition);
     }
+
+    /**
+     * Returns the last parse result cause or null before the first parse.
+     * @return last parse result cause
+     */
+    public PARSE_RESULT_CAUSE getLastParseResultCause() { return lastParseResultCause; }
+
 
     /**
      * Returns the parse trim mode
@@ -295,16 +333,24 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
     public boolean getParseCaseInsensitive() { return parseCaseInsensitive; }
 
     /**
-     * Return the default value returned on parsing a null-text
-     * @return the default value for null
-     */
-    public T getParseNullDefault() { return parseNullDefault; }
-
-    /**
      * Returns a list of strings of which each is a valid textual representative of null
      * @return List of textual null representatives
      */
     public List<String> getParseNullTexts() { return parseNullTexts; }
+
+    /**
+     * Returns the default which is returned if null is passed to parse instead of a text
+     * @return default value on a passed null to parse
+     */
+    public T getParseOfNullDefault() {
+        return parseOfNullDefault;
+    }
+
+    /**
+     * Return the default value returned on parsing a null-text
+     * @return the default value for null
+     */
+    public T getParseNullTextDefault() { return parseNullTextDefault; }
 
     /**
      * Returns the default value returned on parsing a text which represents a missing-value
@@ -325,32 +371,33 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
     public boolean getParseUntilEnd() { return parseUntilEnd; }
 
     /**
-     * Returns the ParseException of the last parse or null if no such exception was raised. Calling this method
-     * will not reset the ParseException of the last parse. Each parse will set its respective return value.
-     * @return ParseException of the last parse or null.
+     * Returns the ParseException of the last parsing or null if no such exception was raised. Calling this method
+     * will not reset the ParseException of the last parsing. Each parse will set its respective return value.
+     * If no exception occurred or null was passed to parse null is returned.
+     * @return ParseException of the last parsing or null.
      */
-    public ParseException getLastParseException() { return lastParseException; }
+    public ParseException getExceptionOnParsing() { return exceptionOnParsing; }
 
     /* ******************************* parse logic ****************************** */
 
     /**
      * Parses the text and returns an instance of t or null to indicate an error. This is the core method
      * for paring, which has to be provided by all formatters. It is guaranteed that no null is passed to it.
-     * On error the implementing method can raise any exception.
+     * On error the implementing method can raise any exception
      * @param text (non-null)
      * @return instance of T or null in case of an error
      */
     protected abstract T parseText(final String text, ParsePosition parsePosition) throws Exception;
 
-    final private static Function<String, Integer> skipZeroFunction = (s -> 0);
+    final private static BiFunction<String, Integer, Integer> skipZeroFunction = ((str, startIndex) -> 0);
 
-    final private static Function<String, Integer> skipAllTrailingSpacesFunction =
-        (text -> Math.max(0, StringUtil.getFirstNonSpaceIndex(text, 0))
+    final private static BiFunction<String, Integer, Integer> skipAllTrailingSpacesFunction =
+        ((text, startIndex) -> Math.max(0, StringUtil.getFirstNonSpaceIndex(text, startIndex))
     );
-    final private static Function<String, Integer> skipAllTrailingWhiteSpacesFunction =
-        (text -> Math.max(0, StringUtil.getFirstNonWhiteSpaceIndex(text, 0))
+    final private static BiFunction<String, Integer, Integer> skipAllTrailingWhiteSpacesFunction =
+        ((text, startIndex) -> Math.max(0, StringUtil.getFirstNonWhiteSpaceIndex(text, startIndex))
     );
-    protected Function<String, Integer> getTrimSkipOffsetFunction() {
+    protected BiFunction<String, Integer, Integer> getTrimSkipOffsetFunction() {
 
         switch (parseTrimMode) {
             case NONE:
@@ -369,53 +416,103 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
         }
     }
 
+    private T buildResult(final T result, final PARSE_RESULT_CAUSE parseResultCause, final ParseException parseException,
+        final ParsePosition contextParsePosition) {
+
+        lastParseResultCause = parseResultCause;
+        exceptionOnParsing = parseException;
+
+        contextParsePosition.setIndex(parsePosition.getIndex());
+        contextParsePosition.setErrorIndex(parsePosition.getErrorIndex());
+
+        return result;
+    }
+
+    /**
+     * Initializes the parse state of the formatter to an error free state
+     * @param startParsePosition parse position to be initialized
+     */
+    private void initParseState(ParsePosition startParsePosition) {
+
+        // copy start parse position, but signal an error-free state
+        parsePosition.setIndex(startParsePosition.getIndex());
+        parsePosition.setErrorIndex(-1);
+
+        // reset exception before parse (because parseText could set it)
+        exceptionOnParsing = null;
+
+    }
+
     /**
      * Parses the passed text and returns the resulting value of type T. In case of an error null is returned.
      * @param text text to be parsed. Null is not allowed, since a return value of null indicates an error.
-     * @param parsePosition position to start at
+     * @param contextParsePosition position to start from and parse position receiving the new (error) position
      * @return Instance of T representing the parsed value
      */
-    final public T parse(final String text, ParsePosition parsePosition,
-        T parseMissingDefault, T parseNullDefault, T parseErrorDefault) {
+    final public T parse(final String text, ParsePosition contextParsePosition,
+        T parseOfNullDefault, T parseMissingDefault, T parseNullDefault, T parseErrorDefault) {
+
+        // set error free state at start
+        initParseState(contextParsePosition);
 
         if (text == null) {
-            return parseNullDefault;
+            return buildResult(
+                parseOfNullDefault, PARSE_RESULT_CAUSE.PARSE_OF_NULL, null, contextParsePosition);
+        }
+
+        if (text == text) {
+            System.out.print("");
         }
 
         // Calculate and save the number of chars skipped by application of the trim mode
-        baseOffset = getTrimSkipIndexFunction.apply(text);
+        parsePosition.setIndex(trimSkipIndexFunction.apply(text, parsePosition.getIndex()));
 
-        // Trim just once to focus on the essential part of the string. Working with indexes does not really work out,
-        // since building of substrings is foreseeable necessary. Doing so also simplifies the algorithm.
-        String trimmedText = parseTrimMode.apply(text);
-        trimmedText = text;
+        // skipped whole text?
+        if (parsePosition.getIndex() == text.length()) {
 
-        if (valueIsMissing(trimmedText)) {
-
-            return parseMissingDefault;
-
-        } else if (contains(parseNullTexts, trimmedText.substring(baseOffset))) {
-
-            return parseNullDefault;
+            // yes, this is a missing value case
+            return buildResult(parseMissingDefault, PARSE_RESULT_CAUSE.MISSING_VALUE, null,
+                resetParsePosition(parsePosition));
 
         } else {
 
-            T result = null;
-            try {
-                result = parseText(trimmedText, parsePosition);
-                lastParseException = null;
+            // search for a text representing NULL
+            Optional<String> foundNullText = find(parseNullTexts, text.substring(parsePosition.getIndex()));
 
-            } catch (ParseException caughtParseException) {
-                lastParseException = ParseExceptionFactory.createParseException(caughtParseException, baseOffset);
+            if (foundNullText.isPresent()) {
 
-            } catch (DateTimeParseException caughtDateTimeParseException) {
-                lastParseException = ParseExceptionFactory.createParseException(caughtDateTimeParseException, baseOffset);
+                moveParsePosition(parsePosition, foundNullText.get().length());
 
-            } catch (Exception exception) {
-                lastParseException = ParseExceptionFactory.createParseException(exception, baseOffset);
+                return buildResult(parseNullDefault, PARSE_RESULT_CAUSE.NULL_AS_TEXT, null,
+                    resetParsePosition(parsePosition));
+
+            } else {
+
+              T result = null;
+                try {
+                    result = parseText(text, parsePosition);
+
+                } catch (ParseException caughtParseException) {
+                    exceptionOnParsing = ParseExceptionFactory.createParseException(caughtParseException);
+//                    parsePosition.setErrorIndex(exceptionOnParsing.getErrorOffset());
+
+                } catch (DateTimeParseException caughtDateTimeParseException) {
+                    exceptionOnParsing = ParseExceptionFactory.createParseException(caughtDateTimeParseException);
+//                    parsePosition.setErrorIndex(caughtDateTimeParseException.getErrorIndex());
+
+                } catch (Exception exception) {
+                    exceptionOnParsing = ParseExceptionFactory.createParseException(exception);
+                    parsePosition.setErrorIndex(parsePosition.getIndex());
+                }
+
+                // caught an exception here or was it set in parseText?
+                if (exceptionOnParsing != null) {
+                    return buildResult(parseErrorDefault, PARSE_RESULT_CAUSE.ERROR, exceptionOnParsing, parsePosition);
+                } else {
+                    return buildResult(result, PARSE_RESULT_CAUSE.TEXT_VALUE, null, parsePosition);
+                }
+
             }
-
-            return result != null ? result : parseErrorDefault;
         }
     }
 
@@ -424,31 +521,34 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
      * @param text text to be parsed. Null is not allowed, since a return value of null indicates an error.
      * @return Instance of T representing the parsed value
      */
-    final public T parse(final String text, T parseMissingDefault, T parseNullDefault, T parseErrorDefault) {
-        return parse(text, new ParsePosition(0), parseMissingDefault, parseNullDefault, parseErrorDefault);
+    final public T parse(final String text,
+        T parseOfNullDefault, T parseMissingDefault, T parseNullDefault, T parseErrorDefault) {
+        return parse(text, new ParsePosition(0),
+            parseOfNullDefault, parseMissingDefault, parseNullDefault, parseErrorDefault);
     }
 
     /**
      * Parses the passed text using the defaults of
-     * {@link #getParseMissingDefault()}, {@link #getParseNullDefault()} and {@link #getParseErrorDefault()}.
+     * {@link #getParseMissingDefault()}, {@link #getParseNullTextDefault()} and {@link #getParseErrorDefault()}.
      * @param text text to parse
      * @return Instance of T representing the parsed value
      */
     final public T parse(final String text) {
-        return parse(text, new ParsePosition(0), parseMissingDefault, parseNullDefault, parseErrorDefault);
+        return parse(text, new ParsePosition(0),
+            parseOfNullDefault, parseMissingDefault, parseNullTextDefault, parseErrorDefault);
     }
 
     /**
      * Parses the passed text using the defaults of
-     * {@link #getParseMissingDefault()}, {@link #getParseNullDefault()} and {@link #getParseErrorDefault()}.
+     * {@link #getParseMissingDefault()}, {@link #getParseNullTextDefault()} and {@link #getParseErrorDefault()}.
      * @param text text to parse
      * @param parsePosition position to start at
      * @return Instance of T representing the parsed value
      */
     final public T parse(final String text, ParsePosition parsePosition) {
-        return parse(text, parsePosition, parseMissingDefault, parseNullDefault, parseErrorDefault);
+        return parse(text, parsePosition,
+            parseOfNullDefault, parseMissingDefault, parseNullTextDefault, parseErrorDefault);
     }
-
 
     /* ************************************************************************** */
     /* ******************************* formatting ******************************* */
@@ -495,9 +595,36 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
 
     /* ***************************** format getter ****************************** */
 
+    /**
+     * Returns the text representing null
+     * @return Text for null
+     */
     public String getFormatNullText() { return formatNullText; }
+
+    /**
+     * Returns the default (substitute) object to be used to format when trying to format null
+     * @return default object for null
+     */
     public Object getFormatNullDefault() { return formatNullDefault; }
+
+    /**
+     * Returns the default (substitute) object to be used to format when an error occurred
+     * @return default object in case of an error
+     */
     public Object getFormatErrorDefault() { return formatErrorDefault; }
+
+    /**
+     * Returns the last format result cause or null before the first format.
+     * @return last format result cause
+     */
+    public FORMAT_RESULT_CAUSE getLastFormatResultCause() { return lastFormatResultCause; }
+
+    /**
+     * Returns the Exception of the last formatting or null if no such exception was raised. Calling this method
+     * will not reset the Exception of the last parse. Each formatting will set its respective return value.
+     * @return Exception of the last formatting or null.
+     */
+    public Exception getExceptionOnFormatting() { return exceptionOnFormatting; }
 
     /* ****************************** format logic ****************************** */
 
@@ -515,13 +642,22 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
     private String formatObj(final Object object) {
         try {
             if (object == null) {
+                lastFormatResultCause = FORMAT_RESULT_CAUSE.FORMAT_ON_NULL;
                 return getFormatNullText();
             } else {
-                return Objects.requireNonNullElse(formatObject((T) object), getFormatNullText());
+                String result = formatObject((T) object);
+                if (result == null) {
+                    lastFormatResultCause = FORMAT_RESULT_CAUSE.FORMAT_ON_NULL;
+                    return getFormatNullText();
+                } else {
+                    lastFormatResultCause = FORMAT_RESULT_CAUSE.OBJECT;
+                    return result;
+                }
             }
 
         } catch (ClassCastException e) {
             // object is not of type T, so its string representation is asked for
+            lastFormatResultCause = FORMAT_RESULT_CAUSE.ERROR;
             return object.toString();
         }
     }
@@ -556,12 +692,15 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
             result = formatObject(objectToFormat);
             // Didn't formatting fail?
             if (result != null) {
+                lastFormatResultCause = FORMAT_RESULT_CAUSE.OBJECT;
                 return result;
             } else {
+                lastFormatResultCause = FORMAT_RESULT_CAUSE.ERROR;
                 return formatObj(defaultOnFormatError);
             }
         } else {
             // no, work with default for null
+            lastFormatResultCause = FORMAT_RESULT_CAUSE.FORMAT_ON_NULL;
             return formatObj(defaultOnFormatNull);
         }
     }
@@ -582,4 +721,3 @@ public abstract class Formatter<T, B, F extends Formatter<T, B, F>> {
     }
 
 }
-
