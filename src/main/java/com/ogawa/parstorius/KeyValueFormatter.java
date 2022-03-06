@@ -31,13 +31,14 @@ public class KeyValueFormatter<T> extends Formatter<T, KeyValueFormatter<T>> {
      * @param parseCaseInsensitive flag, if the parser behaves case-insensitive
      * @param pattern pattern for parsing and formatting
      */
-    protected KeyValueFormatter(final boolean parseCaseInsensitive, final Map<String, T> pattern) {
-        super(parseCaseInsensitive);
+    protected KeyValueFormatter(final boolean parseCaseInsensitive, final Map<String, T> pattern, boolean parseUntilEnd) {
+        super(parseCaseInsensitive, PARSE_SKIP_MODE.WHITESPACES, parseUntilEnd);
     }
 
     @Override protected KeyValueFormatter<T> init() { return this; }
 
-    @Override public KeyValueFormatter<T> clone() { return new KeyValueFormatter<>(parseCaseInsensitive, null);
+    @Override public KeyValueFormatter<T> clone() {
+        return new KeyValueFormatter<>(parseCaseInsensitive, null, getParseUntilEnd());
     }
 
     public Map<String, T> getKeyValueMap() {

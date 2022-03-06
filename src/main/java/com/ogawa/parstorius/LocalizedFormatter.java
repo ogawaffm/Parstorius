@@ -28,8 +28,8 @@ public abstract class LocalizedFormatter<T, F extends LocalizedFormatter<T, F>>
   /* ****************************** constructors ****************************** */
   /* ************************************************************************** */
 
-  protected LocalizedFormatter(final Locale locale) {
-    super(false);
+  protected LocalizedFormatter(final Locale locale, PARSE_SKIP_MODE skipMode, boolean parseUntilEnd) {
+    super(false, skipMode, parseUntilEnd);
     // internalize arguments
     this.locale = Objects.requireNonNullElse(locale,Locale.getDefault());
   }

@@ -28,7 +28,7 @@ import java.util.List;
 
 public class BooleanFormatterTest extends FormatterTest<Boolean, BooleanFormatter> implements
     BooleanFormatterConstructorTest,
-    FormatterConstructorDefaultsTest {
+    FormatterConstructorArgsTest {
 
   static List<String> booleanTexts = List.of("wahr", "falsch", "-1", "0");
 

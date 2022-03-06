@@ -17,6 +17,7 @@
 package com.ogawa.parstorius;
 
 import java.util.Objects;
+import java.util.function.BiFunction;
 
 public class StringUtil {
 
@@ -109,5 +110,15 @@ public class StringUtil {
     }
     return -1;
   }
+
+  static BiFunction<String, Integer, Integer> skipZeroFunction = ((str, startIndex) -> 0);
+
+  static BiFunction<String, Integer, Integer> skipAllTrailingSpacesFunction =
+      ((str, startIndex) -> Math.max(0, StringUtil.getFirstNonSpaceIndex(str, startIndex))
+      );
+  static BiFunction<String, Integer, Integer> skipAllTrailingWhiteSpacesFunction =
+      ((str, startIndex) -> Math.max(0, StringUtil.getFirstNonWhiteSpaceIndex(str, startIndex))
+      );
+
 
 }

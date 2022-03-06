@@ -52,8 +52,9 @@ public class TemporalAccessorFormatter<T extends TemporalAccessor>
     /* ****************************** constructors ****************************** */
     /* ************************************************************************** */
 
-    public TemporalAccessorFormatter(Class<T> temporalAccessorClassT, DateTimeFormatter dateTimeFormatter) {
-        super(false);
+    public TemporalAccessorFormatter(Class<T> temporalAccessorClassT, DateTimeFormatter dateTimeFormatter,
+        boolean parseCaseInsensitive, PARSE_SKIP_MODE parseSkipMode, boolean parseUntilEnd) {
+        super(false, parseSkipMode, parseUntilEnd);
 
         Objects.requireNonNull(temporalAccessorClassT, "temporalAccessorClassT");
         Objects.requireNonNull(dateTimeFormatter, "dateTimeFormatter");
@@ -101,7 +102,8 @@ public class TemporalAccessorFormatter<T extends TemporalAccessor>
     }
 
     @Override public TemporalAccessorFormatter<T> clone() {
-        return new TemporalAccessorFormatter<>(classT, dateTimeFormatter).copyProperties(this);
+        return new TemporalAccessorFormatter<>(classT, dateTimeFormatter,
+        getParseCaseInsensitive(), getParseSkipMode(), getParseUntilEnd()).copyProperties(this);
     }
 
     @SuppressWarnings("unchecked")

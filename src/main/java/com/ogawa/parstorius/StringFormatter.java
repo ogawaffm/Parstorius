@@ -16,7 +16,6 @@
 
 package com.ogawa.parstorius;
 
-import java.text.DecimalFormat;
 import java.text.ParsePosition;
 
 import static java.lang.Math.abs;
@@ -30,8 +29,8 @@ public class StringFormatter extends Formatter<String, StringFormatter> {
     private int fixedLength;
     String blankValueDefault;
 
-    protected StringFormatter(boolean parseCaseInsensitive, int fixedLength) {
-        super(parseCaseInsensitive);
+    protected StringFormatter(boolean parseCaseInsensitive, int fixedLength, boolean parseUntilEnd) {
+        super(parseCaseInsensitive, PARSE_SKIP_MODE.TRAILING_WHITESPACES,  parseUntilEnd);
         this.blankValueDefault = null;
     }
 
@@ -46,7 +45,7 @@ public class StringFormatter extends Formatter<String, StringFormatter> {
      * @return a clone of the formatter
      */
     @Override public StringFormatter clone() {
-        StringFormatter clone = new StringFormatter(parseCaseInsensitive, fixedLength);
+        StringFormatter clone = new StringFormatter(parseCaseInsensitive, fixedLength, getParseUntilEnd());
         clone.fixedLength = this.fixedLength;
         clone.blankValueDefault = this.blankValueDefault;
         return clone.init();

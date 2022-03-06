@@ -18,9 +18,9 @@ package com.ogawa.parstorius.formatter;
 
 import com.ogawa.parstorius.PARSE_RESULT_CAUSE;
 
-public enum PARSE_TEST {
+public enum FORMAT_TEST {
     // in logical order
-    PARSE_OF_NULL_DEFAULT { public PARSE_RESULT_CAUSE getResultCause() { return PARSE_RESULT_CAUSE.PARSE_OF_NULL; } },
+    FORMAT_OF_NULL_DEFAULT { public PARSE_RESULT_CAUSE getResultCause() { return PARSE_RESULT_CAUSE.PARSE_OF_NULL; } },
     PARSE_MISSING_DEFAULT { public PARSE_RESULT_CAUSE getResultCause() { return PARSE_RESULT_CAUSE.MISSING_VALUE; } },
     PARSE_NULL_TEXT_DEFAULT { public PARSE_RESULT_CAUSE getResultCause() { return PARSE_RESULT_CAUSE.NULL_AS_TEXT; } },
     PARSE_ERROR_DEFAULT { public PARSE_RESULT_CAUSE getResultCause() { return PARSE_RESULT_CAUSE.ERROR; } },

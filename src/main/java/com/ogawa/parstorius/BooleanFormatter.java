@@ -46,23 +46,15 @@ public class BooleanFormatter extends Formatter<Boolean, BooleanFormatter> {
     /* ****************************** constructors ****************************** */
     /* ************************************************************************** */
 
-    public BooleanFormatter() {
-        this(false);
-    }
-    public BooleanFormatter(boolean parseCaseInsensitive) {
-        this(parseCaseInsensitive, null, null);
-    }
-    public BooleanFormatter(List<String> trueList, List<String> falseList) {
-        this(false, null, null);
-    }
-
-    public BooleanFormatter(boolean parseCaseInsensitive, List<String> trueRepresentatives, List<String> falseRepresentatives) {
-        super(parseCaseInsensitive);
+    public BooleanFormatter(
+        List<String> trueRepresentatives, List<String> falseRepresentatives,
+        boolean parseCaseInsensitive,
+        PARSE_SKIP_MODE parseSkipMode, boolean parseUntilEnd) {
+        super(parseCaseInsensitive, parseSkipMode, parseUntilEnd);
         trueRepresentatives = new ArrayList<String>();
         trueRepresentatives.forEach(e -> this.trueRepresentatives.add(e));
         falseRepresentatives = new ArrayList<String>();
         falseRepresentatives.forEach(e -> this.falseRepresentatives.add(e));
-        setParseCaseInsensitive(parseCaseInsensitive);
         init();
     }
 
@@ -101,7 +93,8 @@ public class BooleanFormatter extends Formatter<Boolean, BooleanFormatter> {
     }
 
     @Override public BooleanFormatter clone() {
-        return new BooleanFormatter(parseCaseInsensitive, trueRepresentatives, falseRepresentatives).copyProperties(this);
+        return new BooleanFormatter(trueRepresentatives, falseRepresentatives,
+            getParseCaseInsensitive(), getParseSkipMode(), getParseUntilEnd()).copyProperties(this);
     }
 
     /* ************************************************************************** */

@@ -16,11 +16,10 @@
 
 package com.ogawa.parstorius.formatter;
 
-import com.ogawa.parstorius.Formatter;
 import com.ogawa.parstorius.NumberFormatter;
 import com.ogawa.parstorius.PARSE_RESULT_CAUSE;
-import com.ogawa.parstorius.TRIM_MODE;
-import com.ogawa.parstorius.numberFormatter.NumberFormatterConstructorTest;
+import com.ogawa.parstorius.PARSE_SKIP_MODE;
+import com.ogawa.parstorius.formatter.common.DefaultFormatterFactory;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -30,35 +29,28 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.List;
 
-public class NumberFormatterTest extends FormatterTest<Integer, NumberFormatter<Integer>> implements
-    NumberFormatterConstructorTest,
-    FormatterConstructorDefaultsTest {
+public abstract class NumberFormatterTest <T extends Number> extends FormatterTest<T, NumberFormatter<T>>
+implements DefaultFormatterFactory {
 
-  NumberFormatterTest() {
-    super(new NumberFormatter(Integer.class, new DecimalFormat()), Integer.valueOf(1));
+  Class<T> numberClassT;
+  NumberFormatterTest(Class<T> numberClassT) {
+    this.numberClassT = numberClassT;
   }
 
-  @Override public List<Formatter> getConstructed() { return NumberFormatterConstructorTest.super.getConstructed(); }
-
-
-  private void setParseDefaults(NumberFormatter f) {
-    f.setParseOfNullDefault(PARSE_TEST.PARSE_OF_NULL_DEFAULT.getDefault());
-    f.setParseMissingDefault(PARSE_TEST.PARSE_MISSING_DEFAULT.getDefault());
-    f.setParseNullTextDefault(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getDefault());
-    f.setParseErrorDefault(PARSE_TEST.PARSE_ERROR_DEFAULT.getDefault());
+  @Override public NumberFormatter<T> createDefaultFormatter() {
+    return new NumberFormatter<T>(
+        numberClassT,
+        new DecimalFormat(),
+        false,
+        PARSE_SKIP_MODE.LEADING_SPACES, false
+    );
   }
 
-  private void resetParseDefaults(NumberFormatter f) {
-    f.setParseOfNullDefault(null);
-    f.setParseMissingDefault(null);
-    f.setParseNullTextDefault(null);
-    f.setParseErrorDefault(null);
-  }
 
   @Test
   @DisplayName("parse valid value")
   void testParseValidValues() {
-    NumberFormatter f = new NumberFormatter(Integer.class, new DecimalFormat());
+    NumberFormatter f = createDefaultFormatter();
 
     Assertions.assertEquals(1234567, f.parse("1234567"));
     Assertions.assertEquals(PARSE_RESULT_CAUSE.TEXT_VALUE, f.getLastParseResultCause());
@@ -185,7 +177,7 @@ public class NumberFormatterTest extends FormatterTest<Integer, NumberFormatter<
   @Test
   @DisplayName("parse (null-handling)")
   void parseWithNulls() {
-    NumberFormatter f = new NumberFormatter(Integer.class, new DecimalFormat());
+    NumberFormatter f = createDefaultFormatter();
 
     f.setParseNullTexts(List.of("N/A", "Nothing"));
 
@@ -211,48 +203,48 @@ public class NumberFormatterTest extends FormatterTest<Integer, NumberFormatter<
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
-    setParseDefaults(f);
-    Assertions.assertEquals(PARSE_TEST.PARSE_OF_NULL_DEFAULT.getDefault(), f.parse(null));
-    Assertions.assertEquals(PARSE_TEST.PARSE_OF_NULL_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    setTestParseDefaults(f);
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.PARSE_OF_NULL), f.parse(null));
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.PARSE_OF_NULL, f.getLastParseResultCause());
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getDefault(), f.parse("N/A"));
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.NULL_AS_TEXT), f.parse("N/A"));
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.NULL_AS_TEXT, f.getLastParseResultCause());
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getDefault(), f.parse("Nothing"));
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.NULL_AS_TEXT), f.parse("Nothing"));
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.NULL_AS_TEXT), f.getLastParseResultCause());
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
-    Assertions.assertEquals(PARSE_TEST.PARSE_ERROR_DEFAULT.getDefault(), f.parse("nothing"));
-    Assertions.assertEquals(PARSE_TEST.PARSE_ERROR_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.ERROR), f.parse("nothing"));
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.ERROR, f.getLastParseResultCause());
     Assertions.assertNotNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
     // case-insensitive
     f.setParseCaseInsensitive(false);
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getDefault(), f.parse("Nothing"));
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.NULL_AS_TEXT), f.parse("Nothing"));
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.NULL_AS_TEXT, f.getLastParseResultCause());
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
-    Assertions.assertEquals(PARSE_TEST.PARSE_ERROR_DEFAULT.getDefault(), f.parse("nothing"));
-    Assertions.assertEquals(PARSE_TEST.PARSE_ERROR_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.ERROR), f.parse("nothing"));
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.ERROR, f.getLastParseResultCause());
     Assertions.assertNotNull(f.getExceptionOnParsing());
     Assertions.assertNotEquals(-1, f.getLastParsePosition().getErrorIndex());
 
     // case-sensitive
     f.setParseCaseInsensitive(true);
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getDefault(), f.parse("Nothing"));
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.NULL_AS_TEXT), f.parse("Nothing"));
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.NULL_AS_TEXT, f.getLastParseResultCause());
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getDefault(), f.parse("nothing"));
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.NULL_AS_TEXT), f.parse("nothing"));
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.NULL_AS_TEXT, f.getLastParseResultCause());
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
@@ -261,33 +253,38 @@ public class NumberFormatterTest extends FormatterTest<Integer, NumberFormatter<
   @Test
   @DisplayName("parse (error-handling)")
   void parseWithErrors() {
-    NumberFormatter f = new NumberFormatter(Integer.class, new DecimalFormat());
+    NumberFormatter f = createDefaultFormatter();
 
     f.setParseNullTexts(List.of("nope"));
-    setParseDefaults(f);
+    setTestParseDefaults(f);
 
-    Assertions.assertEquals(PARSE_TEST.PARSE_ERROR_DEFAULT.getDefault(), f.parse("null"));
-    Assertions.assertEquals(PARSE_TEST.PARSE_ERROR_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.ERROR), f.parse("null"));
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.ERROR, f.getLastParseResultCause());
     Assertions.assertNotNull(f.getExceptionOnParsing());
     Assertions.assertNotEquals(-1, f.getLastParsePosition().getErrorIndex());
 
-    Assertions.assertEquals(PARSE_TEST.PARSE_ERROR_DEFAULT.getDefault(), f.parse("cause error"));
-    Assertions.assertEquals(PARSE_TEST.PARSE_ERROR_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    String text;
+    text = "null";
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.ERROR);
+
+
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.ERROR), f.parse("cause error"));
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.ERROR, f.getLastParseResultCause());
     Assertions.assertNotNull(f.getExceptionOnParsing());
     Assertions.assertNotEquals(-1, f.getLastParsePosition().getErrorIndex());
 
     Assertions.assertEquals(3, f.parse("3"));
-    Assertions.assertEquals(PARSE_TEST.PARSE_TEXT_VALUE.getResultCause(), f.getLastParseResultCause());
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.TEXT_VALUE, f.getLastParseResultCause());
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getDefault(), f.parse("nope"));
-    Assertions.assertEquals(PARSE_TEST.PARSE_NULL_TEXT_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.NULL_AS_TEXT), f.parse("nope"));
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.NULL_AS_TEXT, f.getLastParseResultCause());
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
-    Assertions.assertEquals(PARSE_TEST.PARSE_OF_NULL_DEFAULT.getDefault(), f.parse(null));
-    Assertions.assertEquals(PARSE_TEST.PARSE_OF_NULL_DEFAULT.getResultCause(), f.getLastParseResultCause());
+    Assertions.assertEquals(getTestParseDefault(PARSE_RESULT_CAUSE.PARSE_OF_NULL), f.parse(null));
+    Assertions.assertEquals(PARSE_RESULT_CAUSE.PARSE_OF_NULL, f.getLastParseResultCause());
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
@@ -298,114 +295,105 @@ public class NumberFormatterTest extends FormatterTest<Integer, NumberFormatter<
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
   }
 
-  void checkFullParse(NumberFormatter f, String text) {
+  void checkParseUntilEnd(NumberFormatter f, String text) {
     Assertions.assertEquals(text.length(), f.getLastParsePosition().getIndex());
   }
 
-  void testParseDefaultResult(NumberFormatter f, String text, PARSE_TEST parseTest) {
-
-    Assertions.assertEquals(parseTest.getDefault(), f.parse(text));
-    Assertions.assertEquals(parseTest.getResultCause(), f.getLastParseResultCause());
-
-    if (parseTest == PARSE_TEST.PARSE_ERROR_DEFAULT) {
-      Assertions.assertNotNull(f.getExceptionOnParsing());
-      Assertions.assertNotEquals(-1, f.getLastParsePosition().getErrorIndex());
-    } else {
-      Assertions.assertNull(f.getExceptionOnParsing());
-      Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
-    }
+  void checkParseUntilError(NumberFormatter f) {
+    Assertions.assertEquals(f.getLastParsePosition().getIndex(), f.getLastParsePosition().getErrorIndex());
   }
+
 
   @Test
   @DisplayName("parse (missing-handling)")
   void parseWithMissing() {
-    NumberFormatter f = new NumberFormatter(Integer.class, new DecimalFormat());
+    NumberFormatter f = createDefaultFormatter();
     String text;
 
-    setParseDefaults(f);
+    setTestParseDefaults(f);
 
     /* **** parsing with default trim mode **** */
 
     // missing default result
     text = "";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
     // error default result
     text = " ";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_ERROR_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.ERROR);
+    checkParseUntilEnd(f, text);
 
     /* **** parsing with default trim mode (explicitly set) **** */
 
-    f.setParseTrimMode(TRIM_MODE.NONE);
+    f.setParseSkipMode(PARSE_SKIP_MODE.NO_SKIP);
 
     // error default result
     text = "";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
     // error default result
     text = " ";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_ERROR_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.ERROR);
+    checkParseUntilEnd(f, text);
 
     /* **** parsing with all really trimming/splitting modes which will led to missing default result **** */
 
-    f.setParseTrimMode(TRIM_MODE.TRIM);
+    f.setParseSkipMode(PARSE_SKIP_MODE.SPACES);
     text = "";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
     text = " ";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
-    f.setParseTrimMode(TRIM_MODE.TRIM_LEADING);
+    f.setParseSkipMode(PARSE_SKIP_MODE.LEADING_SPACES);
     text = "";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
     text = " ";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
-    f.setParseTrimMode(TRIM_MODE.TRIM_TRAILING);
+    f.setParseSkipMode(PARSE_SKIP_MODE.TRAILING_SPACES);
     text = "";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
     text = " ";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
 
-    f.setParseTrimMode(TRIM_MODE.STRIP);
+    f.setParseSkipMode(PARSE_SKIP_MODE.WHITESPACES);
     text = "";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
     text = " ";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
-    f.setParseTrimMode(TRIM_MODE.STRIP_LEADING);
+    f.setParseSkipMode(PARSE_SKIP_MODE.LEADING_WHITESPACES);
     text = "";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
     text = " ";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
-    f.setParseTrimMode(TRIM_MODE.STRIP_TRAILING);
+    f.setParseSkipMode(PARSE_SKIP_MODE.TRAILING_WHITESPACES);
     text = "";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
     text = " ";
-    testParseDefaultResult(f, text, PARSE_TEST.PARSE_MISSING_DEFAULT);
-    checkFullParse(f, text);
+    testParseDefaultResult(f, text, PARSE_RESULT_CAUSE.MISSING_VALUE);
+    checkParseUntilEnd(f, text);
 
   }
 

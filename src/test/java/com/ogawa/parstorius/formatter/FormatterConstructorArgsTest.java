@@ -17,26 +17,35 @@
 package com.ogawa.parstorius.formatter;
 
 import com.ogawa.parstorius.Formatter;
+import com.ogawa.parstorius.PARSE_SKIP_MODE;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public interface FormatterConstructorDefaultsTest <T, P, F extends Formatter<T, F>> {
+public interface FormatterConstructorArgsTest<T, F extends Formatter<T, F>> {
 
-  List<Formatter<T, F>> getConstructed();
 
+  /**
+   * Tests the formatter construction args
+   * @param f
+   * @param parseCaseInsensitive
+   * @param parseSkipMode
+   * @param parseUntilEnd
+   */
   @Test
-  @DisplayName("default of non-constructor-arguments")
-  default void defaultsOfNoneConstructorArgs() {
-    for(Formatter<T, F> f : getConstructed()) {
-      assertEquals(null, f.getParseNullTextDefault());
-      assertEquals(null, f.getParseMissingDefault());
-      assertEquals(null, f.getParseErrorDefault());
-      assertEquals(List.of(), f.getParseNullTexts());
-    }
+  @DisplayName("construction args test")
+  default void testFormatterConstructionDefaults(Formatter f,
+      final boolean parseCaseInsensitive, final PARSE_SKIP_MODE parseSkipMode, boolean parseUntilEnd ) {
+
+    Assertions.assertEquals(parseCaseInsensitive, f.getParseCaseInsensitive());
+    Assertions.assertEquals(parseSkipMode, f.getParseSkipMode());
+    Assertions.assertEquals(parseUntilEnd, f.getParseUntilEnd());
+
   }
+
 
 
 }

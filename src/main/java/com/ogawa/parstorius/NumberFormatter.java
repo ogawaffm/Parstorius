@@ -17,7 +17,6 @@
 package com.ogawa.parstorius;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.ParsePosition;
@@ -53,21 +52,10 @@ public class NumberFormatter<T extends Number> extends Formatter<T, NumberFormat
     /* ****************************** constructors ****************************** */
     /* ************************************************************************** */
 
-    public NumberFormatter(Class<T> numberClassT) {
-        this(numberClassT, new DecimalFormat());
-    }
+    public NumberFormatter(Class<T> numberClassT, DecimalFormat decimalFormat,
+        boolean parseCaseInsensitive, PARSE_SKIP_MODE skipMode, boolean parseUntilEnd) {
+        super(parseCaseInsensitive, PARSE_SKIP_MODE.LEADING_WHITESPACES, parseUntilEnd);
 
-    public NumberFormatter(Class<T> numberClassT, boolean parseCaseInsensitive) {
-        this(numberClassT, new DecimalFormat(), parseCaseInsensitive);
-    }
-
-    public NumberFormatter(Class<T> numberClassT, DecimalFormat decimalFormat) {
-        // use case-sensitive mode because DecimalFormat does not know about case-insensitivity
-        this(numberClassT, decimalFormat, false);
-    }
-
-    public NumberFormatter(Class<T> numberClassT, DecimalFormat decimalFormat, boolean parseCaseInsensitive) {
-        super(parseCaseInsensitive);
 
         Objects.requireNonNull(numberClassT, "numberClassT");
         Objects.requireNonNull(numberClassT, "decimalFormat");
@@ -77,7 +65,7 @@ public class NumberFormatter<T extends Number> extends Formatter<T, NumberFormat
         this.decimalFormat = (DecimalFormat) decimalFormat.clone();
         this.decimalFormat.setParseBigDecimal(true);
 
-        castMethod = getCastMethod(numberClassT);
+        castMethod = NumberUtil.getBigDecimalCaster(numberClassT);
 
         if (castMethod == null) {
             throw new IllegalArgumentException(numberClassT.getName() + " not supported");
@@ -121,36 +109,6 @@ public class NumberFormatter<T extends Number> extends Formatter<T, NumberFormat
         return result;
     }
 
-    static private Function<BigDecimal, ? extends Number> getCastMethod(Class numberClassT) {
-
-        // integral primitives
-        if (numberClassT.equals(Byte.class)) {
-            return BigDecimal::byteValueExact;
-        } else if (numberClassT.equals(Short.class)) {
-            return BigDecimal::shortValueExact;
-        } else if (numberClassT.equals(Integer.class)) {
-            return BigDecimal::intValueExact;
-        } else if (numberClassT.equals(Long.class)) {
-            return BigDecimal::longValueExact;
-
-            // float primitives
-        } else if (numberClassT.equals(Float.class)) {
-            return BigDecimal::floatValue;
-        } else if (numberClassT.equals(Double.class)) {
-            return BigDecimal::doubleValue;
-
-            // big data types
-        } else if (numberClassT.equals(BigInteger.class)) {
-            return BigDecimal::toBigIntegerExact;
-        } else if (numberClassT.equals(BigDecimal.class)) {
-            return (Function<BigDecimal, BigDecimal>) bigDecimal -> bigDecimal;
-        } else {
-            // not supported
-            return null;
-        }
-
-    }
-
     @Override protected NumberFormatter<T> init() {
         return this;
     }
@@ -161,7 +119,8 @@ public class NumberFormatter<T extends Number> extends Formatter<T, NumberFormat
 
     // instantiates a new Formatter with same local and formatPattern
     @Override public NumberFormatter<T> clone() {
-        return new NumberFormatter<>(numberClassT, decimalFormat).copyProperties(this);
+        return new NumberFormatter<>(numberClassT, decimalFormat,
+        getParseCaseInsensitive(), getParseSkipMode(), getParseUntilEnd()).copyProperties(this);
     }
 
     /* ************************************************************************** */
