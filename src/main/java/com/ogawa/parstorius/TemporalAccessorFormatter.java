@@ -61,6 +61,7 @@ public class TemporalAccessorFormatter<T extends TemporalAccessor>
 
         this.classT = temporalAccessorClassT;
         this.dateTimeFormatter = dateTimeFormatter;
+        this.parseCaseInsensitive = parseCaseInsensitive;
 
         castMethod = getCastMethod(temporalAccessorClassT);
 

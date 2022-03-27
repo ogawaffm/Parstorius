@@ -17,6 +17,8 @@
 package com.ogawa.parstorius.formatter;
 
 import com.ogawa.parstorius.Formatter;
+import com.ogawa.parstorius.formatter.common.CloneTest;
+import com.ogawa.parstorius.formatter.common.DefaultFormatterFactory;
 import com.ogawa.parstorius.formatter.parsing.FormatterParseDefaultsTester;
 
 import org.junit.jupiter.api.Assertions;
@@ -29,7 +31,9 @@ import static com.ogawa.parstorius.Formatter.NULL_TEXT;
 public abstract class FormatterTest <T, F extends Formatter<T, F>>
   implements
     FormatterConstructorArgsTest<T, F>,
-    FormatterParseDefaultsTester<T, F>
+    FormatterParseDefaultsTester<T, F>,
+    DefaultFormatterFactory<T, F>,
+    CloneTest<T, F>
 {
 
   @Nested

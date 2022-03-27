@@ -38,8 +38,8 @@ public class BooleanFormatter extends Formatter<Boolean, BooleanFormatter> {
     public static final List<String> ZERO_FALSE_LIST = List.of(Boolean.TRUE.toString());
 
     BiPredicate<String, String> caseFunction;
-    final private ArrayList<String> trueRepresentatives = new ArrayList<String>();
-    final private ArrayList<String> falseRepresentatives = new ArrayList<String>();
+    private List<String> trueRepresentatives;
+    private List<String> falseRepresentatives;
 
 
     /* ************************************************************************** */
@@ -51,10 +51,8 @@ public class BooleanFormatter extends Formatter<Boolean, BooleanFormatter> {
         boolean parseCaseInsensitive,
         PARSE_SKIP_MODE parseSkipMode, boolean parseUntilEnd) {
         super(parseCaseInsensitive, parseSkipMode, parseUntilEnd);
-        trueRepresentatives = new ArrayList<String>();
-        trueRepresentatives.forEach(e -> this.trueRepresentatives.add(e));
-        falseRepresentatives = new ArrayList<String>();
-        falseRepresentatives.forEach(e -> this.falseRepresentatives.add(e));
+        this.trueRepresentatives = List.copyOf(trueRepresentatives);
+        this.falseRepresentatives = List.copyOf(falseRepresentatives);
         init();
     }
 
@@ -100,6 +98,18 @@ public class BooleanFormatter extends Formatter<Boolean, BooleanFormatter> {
     /* ************************************************************************** */
     /* ********************************* parsing ******************************** */
     /* ************************************************************************** */
+
+    /* ****************************** parse setter ****************************** */
+
+  public BooleanFormatter setTrueList(List<String> trueRepresentatives) {
+      this.trueRepresentatives = List.copyOf(trueRepresentatives);
+      return this;
+  }
+
+    public BooleanFormatter setFalseList(List<String> falseRepresentatives) {
+        this.falseRepresentatives = List.copyOf(falseRepresentatives);
+        return this;
+    }
 
     /* ******************************* parse logic ****************************** */
 

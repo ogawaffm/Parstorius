@@ -19,7 +19,6 @@ package com.ogawa.parstorius.formatter;
 import com.ogawa.parstorius.NumberFormatter;
 import com.ogawa.parstorius.PARSE_RESULT_CAUSE;
 import com.ogawa.parstorius.PARSE_SKIP_MODE;
-import com.ogawa.parstorius.formatter.common.DefaultFormatterFactory;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -28,13 +27,19 @@ import org.junit.jupiter.api.Test;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.List;
+import java.util.function.Function;
 
-public abstract class NumberFormatterTest <T extends Number> extends FormatterTest<T, NumberFormatter<T>>
-implements DefaultFormatterFactory {
+public abstract class NumberFormatterTest <T extends Number> extends FormatterTest<T, NumberFormatter<T>> {
 
+  Function<Number, T> caster;
   Class<T> numberClassT;
-  NumberFormatterTest(Class<T> numberClassT) {
+  NumberFormatterTest(Class<T> numberClassT, Function<Number, T> caster) {
     this.numberClassT = numberClassT;
+    this.caster = caster;
+  }
+
+  public T cast(final Number obj) {
+    return caster.apply(obj);
   }
 
   @Override public NumberFormatter<T> createDefaultFormatter() {
@@ -46,11 +51,16 @@ implements DefaultFormatterFactory {
     );
   }
 
+  @Override public T getTestParseDefault(final PARSE_RESULT_CAUSE formatDefault) {
+    // results in -1, -2 ... for integral number types and -1.2, -2.2 ... for floating point types
+    return caster.apply((-formatDefault.ordinal() -1) - (-formatDefault.ordinal() -1)/10); // e.g -1.1, -2.2
+  }
+
 
   @Test
   @DisplayName("parse valid value")
   void testParseValidValues() {
-    NumberFormatter f = createDefaultFormatter();
+    NumberFormatter<T> f = createDefaultFormatter();
 
     Assertions.assertEquals(1234567, f.parse("1234567"));
     Assertions.assertEquals(PARSE_RESULT_CAUSE.TEXT_VALUE, f.getLastParseResultCause());
@@ -81,12 +91,12 @@ implements DefaultFormatterFactory {
   @Test
   @DisplayName("parse with case-sensitivity")
   void testParseCaseInsensitivity() {
-    NumberFormatter f = new NumberFormatter(Integer.class, new DecimalFormat());
+    NumberFormatter<T> f = createDefaultFormatter();
     DecimalFormatSymbols dfs = new DecimalFormatSymbols();
 
     dfs.setExponentSeparator("x10^");
     DecimalFormat df = new DecimalFormat(new DecimalFormat().toPattern(), dfs);
-    NumberFormatter fx10 = new NumberFormatter(Integer.class, df);
+    NumberFormatter<T> fx10 = createDefaultFormatter();
 
     f.setParseCaseInsensitive(true);
 
@@ -177,7 +187,7 @@ implements DefaultFormatterFactory {
   @Test
   @DisplayName("parse (null-handling)")
   void parseWithNulls() {
-    NumberFormatter f = createDefaultFormatter();
+    NumberFormatter<T> f = createDefaultFormatter();
 
     f.setParseNullTexts(List.of("N/A", "Nothing"));
 
@@ -188,17 +198,17 @@ implements DefaultFormatterFactory {
     // with null as null default (which is the default on instance construction)
     f.setParseNullTextDefault(null);
 
-    Assertions.assertEquals(null, f.parse(null));
+    Assertions.assertNull(f.parse(null));
     Assertions.assertEquals(PARSE_RESULT_CAUSE.PARSE_OF_NULL, f.getLastParseResultCause());
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
 
-    Assertions.assertEquals(null, f.parse("n/A"));
+    Assertions.assertNull(f.parse("n/A"));
     Assertions.assertEquals(PARSE_RESULT_CAUSE.ERROR, f.getLastParseResultCause());
     Assertions.assertNotNull(f.getExceptionOnParsing());
     Assertions.assertNotEquals(-1, f.getLastParsePosition().getErrorIndex());
 
-    Assertions.assertEquals(null, f.parse("N/A"));
+    Assertions.assertNull(f.parse("N/A"));
     Assertions.assertEquals(PARSE_RESULT_CAUSE.NULL_AS_TEXT, f.getLastParseResultCause());
     Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
@@ -253,7 +263,7 @@ implements DefaultFormatterFactory {
   @Test
   @DisplayName("parse (error-handling)")
   void parseWithErrors() {
-    NumberFormatter f = createDefaultFormatter();
+    NumberFormatter<T> f = createDefaultFormatter();
 
     f.setParseNullTexts(List.of("nope"));
     setTestParseDefaults(f);
@@ -290,16 +300,16 @@ implements DefaultFormatterFactory {
 
   }
 
-  void checkNoError(NumberFormatter f) {
-    Assertions.assertEquals(null, f.getExceptionOnParsing());
+  void checkNoError(NumberFormatter<T> f) {
+    Assertions.assertNull(f.getExceptionOnParsing());
     Assertions.assertEquals(-1, f.getLastParsePosition().getErrorIndex());
   }
 
-  void checkParseUntilEnd(NumberFormatter f, String text) {
+  void checkParseUntilEnd(NumberFormatter<T> f, String text) {
     Assertions.assertEquals(text.length(), f.getLastParsePosition().getIndex());
   }
 
-  void checkParseUntilError(NumberFormatter f) {
+  void checkParseUntilError(NumberFormatter<T> f) {
     Assertions.assertEquals(f.getLastParsePosition().getIndex(), f.getLastParsePosition().getErrorIndex());
   }
 
@@ -307,7 +317,7 @@ implements DefaultFormatterFactory {
   @Test
   @DisplayName("parse (missing-handling)")
   void parseWithMissing() {
-    NumberFormatter f = createDefaultFormatter();
+    NumberFormatter<T> f = createDefaultFormatter();
     String text;
 
     setTestParseDefaults(f);
@@ -397,21 +407,4 @@ implements DefaultFormatterFactory {
 
   }
 
-
-  @DisplayName("parse (with all args)")
-  void parseWithAllArgs() {
-    NumberFormatter f = new NumberFormatter(Integer.class, new DecimalFormat());
-
-    f.setParseMissingDefault(null);
-    f.setParseErrorDefault(1);
-    f.setParseNullTextDefault(1);
-
-    Assertions.assertEquals(false, f.parse(null));
-    Assertions.assertEquals(true, f.parse("cause error"));
-
-    f.setParseNullTextDefault(1);
-    f.setParseErrorDefault(1); // set different default for null
-    Assertions.assertEquals(true, f.parse(null));
-    Assertions.assertEquals(false, f.parse("cause error"));
-  }
 }

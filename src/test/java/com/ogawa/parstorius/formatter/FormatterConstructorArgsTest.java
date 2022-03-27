@@ -27,7 +27,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public interface FormatterConstructorArgsTest<T, F extends Formatter<T, F>> {
 
-
   /**
    * Tests the formatter construction args
    * @param f

@@ -240,6 +240,17 @@ public abstract class Formatter<T, F extends Formatter<T, F>> {
     }
 
     /**
+     * Sets if the parser parses case insensitive.
+     * @param parseCaseInsensitive new case insensitivity for parsing
+     * @return the formatter instance
+     */
+    @SuppressWarnings("unchecked")
+    public F setParseCaseInsensitive(final boolean parseCaseInsensitive) {
+        this.parseCaseInsensitive = parseCaseInsensitive;
+        return (F) this;
+    }
+
+    /**
      * Sets the value to be returned on parsing a text with found null representative
      * (e.g. "null", "<null>", "-", ".", "none" - set using setParseNullTexts)
      * or on parsing on null argument instead of a string instance.

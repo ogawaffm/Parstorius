@@ -56,7 +56,6 @@ public class NumberFormatter<T extends Number> extends Formatter<T, NumberFormat
         boolean parseCaseInsensitive, PARSE_SKIP_MODE skipMode, boolean parseUntilEnd) {
         super(parseCaseInsensitive, PARSE_SKIP_MODE.LEADING_WHITESPACES, parseUntilEnd);
 
-
         Objects.requireNonNull(numberClassT, "numberClassT");
         Objects.requireNonNull(numberClassT, "decimalFormat");
 
@@ -101,7 +100,6 @@ public class NumberFormatter<T extends Number> extends Formatter<T, NumberFormat
             .toString()
         ;
     }
-
 
     @SuppressWarnings("unchecked")
     private T cast(BigDecimal bigDecimal) {
@@ -163,8 +161,6 @@ public class NumberFormatter<T extends Number> extends Formatter<T, NumberFormat
         } else {
             return text;
         }
-//        return p.matcher(text).replaceFirst(decimalFormat.getDecimalFormatSymbols().getExponentSeparator());
-
     }
 
     @Override
@@ -184,9 +180,6 @@ public class NumberFormatter<T extends Number> extends Formatter<T, NumberFormat
         } else {
             return cast((BigDecimal) result);
         }
-
-//        return result != null ? cast((BigDecimal) result) : null;
-
     }
 
     /* ************************************************************************** */

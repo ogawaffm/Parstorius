@@ -18,30 +18,24 @@ package com.ogawa.parstorius.formatter;
 
 import com.ogawa.parstorius.BooleanFormatter;
 import com.ogawa.parstorius.Formatter;
-import com.ogawa.parstorius.booleanFormatter.BooleanFormatterConstructorTest;
+import com.ogawa.parstorius.PARSE_RESULT_CAUSE;
+import com.ogawa.parstorius.PARSE_SKIP_MODE;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
 import java.util.List;
 
-public class BooleanFormatterTest extends FormatterTest<Boolean, BooleanFormatter> implements
-    BooleanFormatterConstructorTest,
-    FormatterConstructorArgsTest {
-
-  static List<String> booleanTexts = List.of("wahr", "falsch", "-1", "0");
+public class BooleanFormatterTest extends FormatterTest<Boolean, BooleanFormatter> {
 
   BooleanFormatterTest() {
-    super(new BooleanFormatter(), Boolean.FALSE);
   }
 
-  @Override public List<Formatter> getConstructed() { return BooleanFormatterConstructorTest.super.getConstructed(); }
 
   @Test
   @DisplayName("parse with case-sensitivity")
   void testParseCaseInsensitivity() {
-    BooleanFormatter f = new BooleanFormatter();
+    BooleanFormatter f = createDefaultFormatter();
 
     Assertions.assertEquals(Boolean.TRUE, f.parse("true"));
     Assertions.assertEquals(Boolean.FALSE, f.parse("false"));
@@ -57,16 +51,28 @@ public class BooleanFormatterTest extends FormatterTest<Boolean, BooleanFormatte
   @Test
   @DisplayName("parse with custom format")
   void parseWithCustomFormat() {
-    BooleanFormatter f = new BooleanFormatter(false, List.of("wahr"), List.of("falsch"));
+    BooleanFormatter f = createDefaultFormatter();
 
-    Assertions.assertEquals(null, f.parse("true"));
-    Assertions.assertEquals(null, f.parse("false"));
+    Assertions.assertEquals(Boolean.FALSE, f.parse("0"));
+    Assertions.assertEquals(Boolean.TRUE, f.parse("1"));
+    Assertions.assertEquals(Boolean.TRUE, f.parse("-1"));
+
+    Assertions.assertEquals(Boolean.FALSE, f.parse("no"));
+    Assertions.assertEquals(Boolean.TRUE, f.parse("yes"));
+
+    Assertions.assertEquals(Boolean.FALSE, f.parse("false"));
+    Assertions.assertEquals(Boolean.TRUE, f.parse("true"));
+
 
     Assertions.assertEquals(Boolean.FALSE, f.parse("falsch"));
     Assertions.assertEquals(Boolean.TRUE, f.parse("wahr"));
 
     Assertions.assertEquals(Boolean.FALSE, f.parse("0"));
     Assertions.assertEquals(Boolean.TRUE, f.parse("-1"));
+
+
+    Assertions.assertEquals(null, f.parse("true"));
+    Assertions.assertEquals(null, f.parse("false"));
 
     f.setParseCaseInsensitive(true);
     Assertions.assertEquals(Boolean.FALSE, f.parse("faLSCh"));
@@ -76,7 +82,7 @@ public class BooleanFormatterTest extends FormatterTest<Boolean, BooleanFormatte
   @Test
   @DisplayName("parse (null-handling)")
   void parseWithNulls() {
-    BooleanFormatter f = new BooleanFormatter();
+    BooleanFormatter f = createDefaultFormatter();
 
     f.setParseNullTexts(List.of("N/A", "Nothing"));
 
@@ -119,7 +125,7 @@ public class BooleanFormatterTest extends FormatterTest<Boolean, BooleanFormatte
   @Test
   @DisplayName("parse (error-handling)")
   void parseWithErrors() {
-    BooleanFormatter f = new BooleanFormatter();
+    BooleanFormatter f = createDefaultFormatter();
 
     f.setParseErrorDefault(true);
     f.setParseNullTextDefault(false); // set different default for null
@@ -135,7 +141,7 @@ public class BooleanFormatterTest extends FormatterTest<Boolean, BooleanFormatte
   @Test
   @DisplayName("parse (missing-handling)")
   void parseWithMissing() {
-    BooleanFormatter f = new BooleanFormatter();
+    BooleanFormatter f = createDefaultFormatter();
 
     f.setParseMissingDefault(true);
     f.setParseErrorDefault(false); // set different default for null
@@ -158,7 +164,7 @@ public class BooleanFormatterTest extends FormatterTest<Boolean, BooleanFormatte
 
   @DisplayName("parse (with all args)")
   void parseWithAllArgs() {
-    BooleanFormatter f = new BooleanFormatter();
+    BooleanFormatter f = createDefaultFormatter();
 
     f.setParseMissingDefault(null);
     f.setParseErrorDefault(true);
@@ -172,5 +178,27 @@ public class BooleanFormatterTest extends FormatterTest<Boolean, BooleanFormatte
     f.setParseErrorDefault(false); // set different default for null
     Assertions.assertEquals(true, f.parse(null));
     Assertions.assertEquals(false, f.parse("cause error"));
+  }
+
+  @Override public BooleanFormatter createDefaultFormatter() {
+    return new BooleanFormatter(List.of("true", "yes", "-1", "1"), List.of("false", "no", "0"), true,
+        PARSE_SKIP_MODE.NO_SKIP, true);
+  }
+
+  @Override public Boolean getTestParseDefault(final PARSE_RESULT_CAUSE formatDefault) {
+    return null;
+  }
+
+  @Override public Formatter<Boolean, BooleanFormatter> getCloneTestFormatter() {
+    return null;
+  }
+
+  @Override public Formatter<Boolean, BooleanFormatter> getComplementaryCloneTestFormatter() {
+    return null;
+  }
+
+  @Override public void compareExtendedProps(final Formatter<Boolean, BooleanFormatter> f,
+      final Formatter<Boolean, BooleanFormatter> fc) {
+
   }
 }
