@@ -19,8 +19,6 @@ package com.ogawa.parstorius.formatter;
 import com.ogawa.parstorius.Formatter;
 import com.ogawa.parstorius.NumberFormatter;
 
-import java.util.function.Function;
-
 public class IntegerFormatterTest extends NumberFormatterTest<Integer> {
 
     IntegerFormatterTest() {
